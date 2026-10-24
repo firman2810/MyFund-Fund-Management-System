@@ -1,0 +1,41 @@
+# Docs: keep only READMEs
+*.md
+!README.md
+
+# Secrets
+.env*
+!.env.example
+*.pem
+*.key
+*.jks
+*.p12
+
+# Node / frontend
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Java / Spring Boot
+target/
+.gradle/
+*.class
+
+# Hyperledger Fabric (generated crypto material and wallets)
+wallet/
+crypto-config/
+organizations/
+channel-artifacts/
+
+# Logs
+*.log
+logs/
+
+# IDE / OS / tooling
+.idea/
+.vscode/
+.claude/
+*.iml
+.DS_Store
+Thumbs.db
