@@ -1,7 +1,6 @@
 <div align="center">
 
-<img src="./docs/design/myfund-transparent.webp" width="90" alt="MyFund logo" />
-</a>
+<img src="./docs/design/myfund-transparent.webp" width="500" alt="MyFund logo" />
 
 <h2> MyFund - Government Fund Management System </h2>
 
