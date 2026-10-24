@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* Design tokens: docs/design/DESIGN.md §2 */
+:root {
+  --ink: #0B0B0C;
+  --page: #F2F2EF;
+  --surface: #FFFFFF;
+  --text-2: #3F424A;
+  --text-muted: #5A5D66;
+  --border: #D9DBE0;
+  --border-control: #C9CBD1;
+  --divider: #ECEDF0;
+  --gridline: #E6E7EA;
+  --bar-text-muted: #C9CBD1;
+  --bar-text-sub: #B5B7BD;
+  --bar-border: #3A3C42;
+  --distributed: #1F3A5F;
+  --distributed-fill: #E4E9F0;
+  --remaining: #E8590C;
+  --remaining-text: #B03E05;
+}
+
+@theme {
+  --color-ink: var(--ink);
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-text-2: var(--text-2);
+  --color-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-border-control: var(--border-control);
+  --color-divider: var(--divider);
+  --color-gridline: var(--gridline);
+  --color-bar-muted: var(--bar-text-muted);
+  --color-bar-sub: var(--bar-text-sub);
+  --color-bar-border: var(--bar-border);
+  --color-distributed: var(--distributed);
+  --color-distributed-fill: var(--distributed-fill);
+  --color-remaining: var(--remaining);
+  --color-remaining-text: var(--remaining-text);
+
+  --font-display: 'Newsreader', Georgia, serif;
+  --font-sans: 'Geist', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  a {
+    color: var(--ink);
+  }
+
+  a:hover {
+    color: var(--remaining-text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(50%); }
+  100% { transform: translateX(200%); }
+}
+
+.animate-indeterminate {
+  animation: indeterminate 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes fadeInSubtle {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInSubtle 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media print {
+  body {
+    background-color: #ffffff !important;
+  }
+  header, footer, nav, button {
+    display: none !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+}
