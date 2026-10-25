@@ -1,0 +1,76 @@
+### Build output ###
+target/
+build/
+out/
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
+HELP.md
+
+### Maven ###
+!.mvn/wrapper/maven-wrapper.jar
+
+### Gradle ###
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+### Secrets & local config ###
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+application-dev.properties
+application-dev.yml
+*.jks
+*.p12
+*.keystore
+
+### Hyperledger Fabric (wallets, certs, keys) ###
+wallet/
+wallets/
+crypto-config/
+organizations/
+*.pem
+*.key
+*_sk
+
+### Logs & runtime ###
+logs/
+*.log
+*.log.gz
+*.pid
+spring-shell.log
+.attach_pid*
+*.hprof
+
+### IntelliJ IDEA ###
+.idea/
+*.iml
+*.iws
+*.ipr
+
+### Eclipse / STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+### VS Code ###
+.vscode/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### OS ###
+.DS_Store
+Thumbs.db
+desktop.ini
