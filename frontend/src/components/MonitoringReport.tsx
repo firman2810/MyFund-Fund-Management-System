@@ -44,7 +44,7 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
       // Date filter
       if (dateFilter === '30days') {
         const txDate = new Date(tx.date).getTime();
-        const thirtyDaysAgo = new Date('2026-03-28').getTime() - 30 * 24 * 60 * 60 * 1000;
+        const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
         if (txDate < thirtyDaysAgo) return false;
       } else if (dateFilter === 'q1_2026') {
         const d = new Date(tx.date);

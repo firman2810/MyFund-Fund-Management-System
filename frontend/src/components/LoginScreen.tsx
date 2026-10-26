@@ -20,7 +20,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
   // Sign In Form State
   const [identifier, setIdentifier] = useState('officer.mof@mof.gov.my');
-  const [password, setPassword] = useState('••••••••');
+  const [password, setPassword] = useState('1234');
   const [activeRole, setActiveRole] = useState<UserRole>('ministry');
 
   // Sign Up Form State
@@ -37,13 +37,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     setErrorMessage('');
     if (role === 'ministry') {
       setIdentifier('officer.mof@mof.gov.my');
-      setPassword('••••••••');
+      setPassword('1234');
     } else if (role === 'agency') {
       setIdentifier('director.nadma@nadma.gov.my');
-      setPassword('••••••••');
+      setPassword('1234');
     } else if (role === 'auditor') {
       setIdentifier('auditor.federal@audit.gov.my');
-      setPassword('••••••••');
+      setPassword('1234');
     }
   };
 

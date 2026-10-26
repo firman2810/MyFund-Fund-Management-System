@@ -1,6 +1,6 @@
 import React from 'react';
 
-// [mark, wordmark, gap] in px: the lockups in docs/design/logo/LOGO.md.
+// [mark, wordmark, gap] in px: the lockups in frontend/brand/LOGO.md.
 const SIZES = {
   sm: [24, 22, 10], // top bar
   md: [32, 28, 14], // footer / docs

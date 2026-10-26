@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Design tokens: docs/design/DESIGN.md §2 */
+/* Design tokens: DESIGN.md §2 */
 :root {
   --ink: #0B0B0C;
   --page: #F2F2EF;
