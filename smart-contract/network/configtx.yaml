@@ -1,0 +1,114 @@
+# configtxgen input for myfund-channel (channel participation API, no system channel).
+# Relative paths resolve from this file's folder.
+
+Organizations:
+  - &OrdererOrg
+    Name: OrdererMSP
+    ID: OrdererMSP
+    MSPDir: organizations/ordererOrganizations/orderer.myfund.local/msp
+    Policies:
+      Readers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
+      Writers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
+      Admins:  { Type: Signature, Rule: "OR('OrdererMSP.admin')" }
+    OrdererEndpoints:
+      - orderer1.orderer.myfund.local:7050
+      - orderer2.orderer.myfund.local:8050
+      - orderer3.orderer.myfund.local:9050
+
+  - &Ministry
+    Name: MinistryMSP
+    ID: MinistryMSP
+    MSPDir: organizations/peerOrganizations/ministry.myfund.local/msp
+    Policies:
+      Readers:     { Type: Signature, Rule: "OR('MinistryMSP.admin', 'MinistryMSP.peer', 'MinistryMSP.client')" }
+      Writers:     { Type: Signature, Rule: "OR('MinistryMSP.admin', 'MinistryMSP.client')" }
+      Admins:      { Type: Signature, Rule: "OR('MinistryMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('MinistryMSP.peer')" }
+    AnchorPeers:
+      - { Host: peer0.ministry.myfund.local, Port: 7051 }
+
+  - &Agency
+    Name: AgencyMSP
+    ID: AgencyMSP
+    MSPDir: organizations/peerOrganizations/agency.myfund.local/msp
+    Policies:
+      Readers:     { Type: Signature, Rule: "OR('AgencyMSP.admin', 'AgencyMSP.peer', 'AgencyMSP.client')" }
+      Writers:     { Type: Signature, Rule: "OR('AgencyMSP.admin', 'AgencyMSP.client')" }
+      Admins:      { Type: Signature, Rule: "OR('AgencyMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('AgencyMSP.peer')" }
+    AnchorPeers:
+      - { Host: peer0.agency.myfund.local, Port: 9051 }
+
+  - &Auditor
+    Name: AuditorMSP
+    ID: AuditorMSP
+    MSPDir: organizations/peerOrganizations/auditor.myfund.local/msp
+    Policies:
+      Readers:     { Type: Signature, Rule: "OR('AuditorMSP.admin', 'AuditorMSP.peer', 'AuditorMSP.client')" }
+      Writers:     { Type: Signature, Rule: "OR('AuditorMSP.admin', 'AuditorMSP.client')" }
+      Admins:      { Type: Signature, Rule: "OR('AuditorMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('AuditorMSP.peer')" }
+    AnchorPeers:
+      - { Host: peer0.auditor.myfund.local, Port: 11051 }
+
+Capabilities:
+  Channel: &ChannelCapabilities { V2_0: true }
+  Orderer: &OrdererCapabilities { V2_0: true }
+  Application: &ApplicationCapabilities { V2_5: true }
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:              { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers:              { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:               { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+    LifecycleEndorsement: { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+    Endorsement:          { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+  Capabilities: *ApplicationCapabilities
+
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  EtcdRaft:
+    Consenters:
+      - Host: orderer1.orderer.myfund.local
+        Port: 7050
+        ClientTLSCert: organizations/ordererOrganizations/orderer.myfund.local/orderers/orderer1.orderer.myfund.local/tls/server.crt
+        ServerTLSCert: organizations/ordererOrganizations/orderer.myfund.local/orderers/orderer1.orderer.myfund.local/tls/server.crt
+      - Host: orderer2.orderer.myfund.local
+        Port: 8050
+        ClientTLSCert: organizations/ordererOrganizations/orderer.myfund.local/orderers/orderer2.orderer.myfund.local/tls/server.crt
+        ServerTLSCert: organizations/ordererOrganizations/orderer.myfund.local/orderers/orderer2.orderer.myfund.local/tls/server.crt
+      - Host: orderer3.orderer.myfund.local
+        Port: 9050
+        ClientTLSCert: organizations/ordererOrganizations/orderer.myfund.local/orderers/orderer3.orderer.myfund.local/tls/server.crt
+        ServerTLSCert: organizations/ordererOrganizations/orderer.myfund.local/orderers/orderer3.orderer.myfund.local/tls/server.crt
+  # A block is cut after 1 s or 10 transactions, whichever comes first.
+  BatchTimeout: 1s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  Organizations:
+  Policies:
+    Readers:         { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers:         { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:          { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+    BlockValidation: { Type: ImplicitMeta, Rule: "ANY Writers" }
+  Capabilities: *OrdererCapabilities
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:  { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+  Capabilities: *ChannelCapabilities
+
+Profiles:
+  MyFundChannel:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations: [*OrdererOrg]
+    Application:
+      <<: *ApplicationDefaults
+      Organizations: [*Ministry, *Agency, *Auditor]

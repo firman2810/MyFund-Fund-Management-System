@@ -1,0 +1,30 @@
+# cryptogen input. Output goes to organizations/ (git-ignored).
+# shortcut: static certs from cryptogen, no Fabric CA; switch to Fabric CA for real onboarding.
+OrdererOrgs:
+  - Name: Orderer
+    Domain: orderer.myfund.local
+    EnableNodeOUs: true
+    Specs:
+      - { Hostname: orderer1, SANS: [localhost, 127.0.0.1] }
+      - { Hostname: orderer2, SANS: [localhost, 127.0.0.1] }
+      - { Hostname: orderer3, SANS: [localhost, 127.0.0.1] }
+
+PeerOrgs:
+  - Name: Ministry
+    Domain: ministry.myfund.local
+    EnableNodeOUs: true
+    Template: { Count: 1, SANS: [localhost, 127.0.0.1] }
+    Specs: [{ Hostname: fundcc }]   # TLS cert for this org's chaincode-as-a-service container
+    Users: { Count: 1 }
+  - Name: Agency
+    Domain: agency.myfund.local
+    EnableNodeOUs: true
+    Template: { Count: 1, SANS: [localhost, 127.0.0.1] }
+    Specs: [{ Hostname: fundcc }]   # TLS cert for this org's chaincode-as-a-service container
+    Users: { Count: 1 }
+  - Name: Auditor
+    Domain: auditor.myfund.local
+    EnableNodeOUs: true
+    Template: { Count: 1, SANS: [localhost, 127.0.0.1] }
+    Specs: [{ Hostname: fundcc }]   # TLS cert for this org's chaincode-as-a-service container
+    Users: { Count: 1 }
