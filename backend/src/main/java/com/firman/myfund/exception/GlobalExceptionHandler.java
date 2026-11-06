@@ -1,6 +1,7 @@
 package com.firman.myfund.exception;
 
 import com.firman.myfund.dto.ErrorResponse;
+import com.firman.myfund.ledger.LedgerException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,9 +32,17 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "Malformed request body");
     }
 
-    @ExceptionHandler(NotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(NotFoundException ex) {
-        return error(HttpStatus.NOT_FOUND, ex.getMessage());
+    /** Ledger refusals keep the contract's meaning; an outage is 503, never a made-up result. */
+    @ExceptionHandler(LedgerException.class)
+    public ResponseEntity<ErrorResponse> handleLedger(LedgerException ex) {
+        HttpStatus status = switch (ex.getKind()) {
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case OVERSPEND, DUPLICATE, CONFLICT -> HttpStatus.CONFLICT;
+            case WRONG_AGENCY, FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case INVALID -> HttpStatus.BAD_REQUEST;
+            case UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        return error(status, ex.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

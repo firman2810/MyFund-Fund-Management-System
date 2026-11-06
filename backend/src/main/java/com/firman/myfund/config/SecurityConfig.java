@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/allocations").hasRole("MINISTRY")
                         .requestMatchers(HttpMethod.POST, "/api/distributions").hasRole("AGENCY")
+                        .requestMatchers("/api/verification").hasRole("AUDITOR")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

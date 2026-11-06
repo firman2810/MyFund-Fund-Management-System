@@ -1,0 +1,79 @@
+{
+  "note": "Illustrative sample records, never real figures. Derived from db/migration V2__demo_seed.sql as changed by V3__spread_demo_dates.sql. Submitted to Fabric in this order by ChainSeeder when the chain is empty.",
+  "events": [
+    {
+      "type": "allocation", "id": "ALC-2026-001", "date": "2026-01-14T09:30:00+08:00",
+      "programme": "National Monsoon Flood Rehabilitation Assistance 2026",
+      "receivingAgency": "National Disaster Management Agency (NADMA)", "amount": "15000000.00",
+      "description": "Emergency rehabilitation funds for public infrastructure repairs and affected rural families in eastern districts.",
+      "supportingInfo": "Cabinet Memorandum Ref: JPM/W/2026/088-A; MOF Allocation Warrant No. W-9921",
+      "referenceNo": "MOF/WAR/2026/0014", "allocatedBy": "Ministry of Finance"
+    },
+    {
+      "type": "distribution", "id": "DST-2026-001", "date": "2026-02-06T11:20:00+08:00",
+      "allocationId": "ALC-2026-001", "agencyName": "National Disaster Management Agency (NADMA)",
+      "beneficiaryName": "District Disaster Committee - Temerloh & Mentakab", "beneficiaryId": "DDC-PHG-2026-012",
+      "amount": "4500000.00",
+      "description": "Immediate rehabilitation grant for 900 affected village households and temporary culvert rebuilding."
+    },
+    {
+      "type": "allocation", "id": "ALC-2026-002", "date": "2026-03-03T11:15:00+08:00",
+      "programme": "B40 Rural Education & Digital Device Grant",
+      "receivingAgency": "Rural Community Development Department (KEMAS)", "amount": "8000000.00",
+      "description": "Procurement of educational tablet devices and broadband subsidies for 12,000 rural primary school students.",
+      "supportingInfo": "Rural Development Ministry Paper KPLB/ED/2026-03; Approved by Treasury Special Committee.",
+      "referenceNo": "MOF/WAR/2026/0029", "allocatedBy": "Ministry of Finance"
+    },
+    {
+      "type": "distribution", "id": "DST-2026-002", "date": "2026-03-27T15:45:00+08:00",
+      "allocationId": "ALC-2026-001", "agencyName": "National Disaster Management Agency (NADMA)",
+      "beneficiaryName": "Kuala Krai Emergency Welfare Consortium", "beneficiaryId": "NGO-KEL-2026-088",
+      "amount": "6750000.00",
+      "description": "Community center structural restoration and clean water filtration units distribution."
+    },
+    {
+      "type": "allocation", "id": "ALC-2026-003", "date": "2026-04-21T14:00:00+08:00",
+      "programme": "Community Health Clinic Upgrading Fund",
+      "receivingAgency": "Malaysian Red Crescent Society (MRCS)", "amount": "5500000.00",
+      "description": "Mobile medical van deployment and diagnostic equipment supplies for underserved suburban communities.",
+      "supportingInfo": "Health Partnership Accord MOH/NGO/2026-Q2; MOF Special Project Sub-allocation.",
+      "referenceNo": "MOF/WAR/2026/0042", "allocatedBy": "Ministry of Finance"
+    },
+    {
+      "type": "distribution", "id": "DST-2026-003", "date": "2026-05-15T10:10:00+08:00",
+      "allocationId": "ALC-2026-002", "agencyName": "Rural Community Development Department (KEMAS)",
+      "beneficiaryName": "Sarawak Rural School Resource Association", "beneficiaryId": "EDU-SRW-2026-005",
+      "amount": "3200000.00",
+      "description": "Batch 1: Delivery of 4,000 ruggedized learning tablets with offline curriculum modules."
+    },
+    {
+      "type": "distribution", "id": "DST-2026-004", "date": "2026-06-09T16:30:00+08:00",
+      "allocationId": "ALC-2026-002", "agencyName": "Rural Community Development Department (KEMAS)",
+      "beneficiaryName": "Sabah Interior Indigenous Education Council", "beneficiaryId": "EDU-SBH-2026-031",
+      "amount": "2400000.00",
+      "description": "Batch 2: Digital devices and 12-month community satellite data vouchers for 28 pedalaman schools."
+    },
+    {
+      "type": "allocation", "id": "ALC-2026-004", "date": "2026-07-06T10:45:00+08:00",
+      "programme": "Smallholder Farmers Drought Relief Scheme",
+      "receivingAgency": "Yayasan Kebajikan Komuniti (YKK)", "amount": "4000000.00",
+      "description": "Direct cash transfers and water pump fuel vouchers to certified smallholders facing prolonged dry spells.",
+      "supportingInfo": "Agri-Welfare Council Directive AGW-2026-11; Federal Warrant W-9954",
+      "referenceNo": "MOF/WAR/2026/0061", "allocatedBy": "Ministry of Finance"
+    },
+    {
+      "type": "distribution", "id": "DST-2026-005", "date": "2026-08-03T14:15:00+08:00",
+      "allocationId": "ALC-2026-003", "agencyName": "Malaysian Red Crescent Society (MRCS)",
+      "beneficiaryName": "Baling & Sik Rural Mobile Health Operations", "beneficiaryId": "HLT-KDH-2026-019",
+      "amount": "4200000.00",
+      "description": "Purchase and refitting of 3 custom medical screening units with portable ultrasound and blood analyzers."
+    },
+    {
+      "type": "distribution", "id": "DST-2026-006", "date": "2026-09-01T09:40:00+08:00",
+      "allocationId": "ALC-2026-004", "agencyName": "Yayasan Kebajikan Komuniti (YKK)",
+      "beneficiaryName": "Perak Agro Smallholders Association", "beneficiaryId": "AGR-PRK-2026-044",
+      "amount": "1800000.00",
+      "description": "Emergency drought financial support for 720 certified rubber and palm oil smallholders."
+    }
+  ]
+}

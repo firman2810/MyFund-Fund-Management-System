@@ -9,14 +9,17 @@ import com.firman.myfund.model.Allocation;
 import com.firman.myfund.model.User;
 import com.firman.myfund.repo.AllocationRepo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.Year;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
 
+/** Reads come from the ledger only; writes go to the ledger, then to the Postgres copy. */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AllocationService {
@@ -24,12 +27,12 @@ public class AllocationService {
     private final AllocationRepo repo;
     private final LedgerGateway ledger;
 
-    @Transactional(readOnly = true)
     public List<AllocationResponse> findAll() {
-        return repo.findAllByOrderByAllocatedAtDesc().stream().map(AllocationResponse::from).toList();
+        return ledger.allocations().stream()
+                .sorted(Comparator.comparing(Allocation::getAllocatedAt).reversed())
+                .map(AllocationResponse::from).toList();
     }
 
-    @Transactional
     public AllocationResult create(CreateAllocationRequest req, User user) {
         int year = Year.now().getValue();
         long seq = repo.nextSeq();
@@ -37,26 +40,38 @@ public class AllocationService {
         String referenceNo = orDefault(req.referenceNo(), "MOF/WAR/%d/%04d".formatted(year, 100 + seq));
 
         // Default texts match frontend mockApi.createAllocation.
-        Allocation a = new Allocation();
-        a.setId(id);
-        a.setProgramme(req.programme().trim());
-        a.setReceivingAgency(req.receivingAgency().trim());
-        a.setAmount(req.amount());
-        a.setDistributedAmount(BigDecimal.ZERO);
-        a.setDescription(orDefault(req.description(),
+        Allocation draft = new Allocation();
+        draft.setId(id);
+        draft.setProgramme(req.programme().trim());
+        draft.setReceivingAgency(req.receivingAgency().trim());
+        draft.setAmount(req.amount());
+        draft.setDescription(orDefault(req.description(),
                 "Official ministerial fund allocation approved under national treasury warrants."));
-        a.setSupportingInfo(orDefault(req.supportingInfo(), "Ministry Allocation Warrant Ref: " + referenceNo));
-        a.setReferenceNo(referenceNo);
-        a.setAllocatedBy(user.getOrganization());
-        a.setAllocatedAt(Instant.now());
-        a.setLedger(ledger.record(String.join("|", "ALLOCATION", id, a.getProgramme(), a.getReceivingAgency(),
-                a.getAmount().toPlainString(), referenceNo, a.getAllocatedBy()), LedgerGateway.ALLOCATION_POLICY));
-        repo.save(a);
+        draft.setSupportingInfo(orDefault(req.supportingInfo(), "Ministry Allocation Warrant Ref: " + referenceNo));
+        draft.setReferenceNo(referenceNo);
+        draft.setAllocatedBy(user.getOrganization());
+        draft.setAllocatedAt(now());
 
+        Allocation a = ledger.createAllocation(user.getRole(), draft);
+        saveCopy(id, () -> repo.save(a));
         return new AllocationResult(AllocationResponse.from(a), TransactionResponse.of(a));
     }
 
     static String orDefault(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    /** Business date of a new record; microseconds so the Postgres copy can hold it exactly. */
+    static Instant now() {
+        return Instant.now().truncatedTo(ChronoUnit.MICROS);
+    }
+
+    /** The ledger already committed, so a failed copy write is logged, not raised: verification will report it. */
+    static void saveCopy(String id, Runnable save) {
+        try {
+            save.run();
+        } catch (RuntimeException e) {
+            log.error("{} is committed on the ledger but the Postgres copy write failed", id, e);
+        }
     }
 }
