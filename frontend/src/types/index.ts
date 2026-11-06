@@ -112,3 +112,20 @@ export interface DistributionResult {
   allocation: Allocation;
   transaction: Transaction;
 }
+
+// GET /api/verification (Auditor): every ledger record compared with the backend's database copy.
+export type DiscrepancyType = 'VALUE_MISMATCH' | 'MISSING_FROM_COPY' | 'NOT_ON_CHAIN';
+
+export interface Discrepancy {
+  recordId: string;
+  type: DiscrepancyType;
+  field: string | null; // set for VALUE_MISMATCH only, as are the two values
+  chainValue: string | null;
+  copyValue: string | null;
+}
+
+export interface VerificationResult {
+  checkedAt: string;
+  recordsChecked: number;
+  discrepancies: Discrepancy[];
+}

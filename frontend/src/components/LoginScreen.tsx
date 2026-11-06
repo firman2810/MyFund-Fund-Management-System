@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
 import { api } from '../services/api';
+import { AVAILABLE_AGENCIES } from '../data/agencies';
 import { TermsModal } from './TermsModal';
 import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 import { Logo } from './ui/Logo';
@@ -270,7 +271,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                       <select
                         id="su-role"
                         value={signupRole}
-                        onChange={(e) => setSignupRole(e.target.value as UserRole)}
+                        onChange={(e) => {
+                          setSignupRole(e.target.value as UserRole);
+                          setSignupOrg('');
+                        }}
                         disabled={isLoading}
                         className={INPUT}
                       >
@@ -283,16 +287,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
                   <div>
                     <label htmlFor="su-org" className={LABEL}>ORGANIZATION / ENTITY</label>
-                    <input
-                      id="su-org"
-                      type="text"
-                      required
-                      placeholder="e.g. National Disaster Management Agency"
-                      value={signupOrg}
-                      onChange={(e) => setSignupOrg(e.target.value)}
-                      disabled={isLoading}
-                      className={INPUT}
-                    />
+                    {/* Agencies pick from the list: the ledger matches the agency name exactly when funds are spent. */}
+                    {signupRole === 'agency' ? (
+                      <select
+                        id="su-org"
+                        required
+                        value={signupOrg}
+                        onChange={(e) => setSignupOrg(e.target.value)}
+                        disabled={isLoading}
+                        className={INPUT}
+                      >
+                        <option value="" disabled>Select your agency or NGO</option>
+                        {AVAILABLE_AGENCIES.map((agency) => (
+                          <option key={agency} value={agency}>{agency}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id="su-org"
+                        type="text"
+                        required
+                        placeholder="e.g. Ministry of Finance"
+                        value={signupOrg}
+                        onChange={(e) => setSignupOrg(e.target.value)}
+                        disabled={isLoading}
+                        className={INPUT}
+                      />
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

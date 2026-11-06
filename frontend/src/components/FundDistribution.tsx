@@ -18,6 +18,7 @@ interface FundDistributionProps {
 }
 
 export const FundDistribution: React.FC<FundDistributionProps> = ({
+  currentUser,
   allocations,
   distributions,
   onAddDistribution,
@@ -32,7 +33,6 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
   const [formError, setFormError] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionStep, setSubmissionStep] = useState('');
   const [successBanner, setSuccessBanner] = useState<{
     show: boolean;
     txId: string;
@@ -41,9 +41,10 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
     amount: number;
   } | null>(null);
 
-  // Filter allocations that have remaining balance
-  const activeAllocations = allocations.filter((a) => a.remainingAmount > 0);
-  const currentSelectedAllocation = allocations.find((a) => a.id === selectedAllocationId) || activeAllocations[0];
+  // Only this agency's allocations: the contract refuses spending another agency's (names must match exactly).
+  const ownAllocations = allocations.filter((a) => a.receivingAgency === currentUser.organization);
+  const activeAllocations = ownAllocations.filter((a) => a.remainingAmount > 0);
+  const currentSelectedAllocation = activeAllocations.find((a) => a.id === selectedAllocationId) || activeAllocations[0];
 
   const handleOpenRecord = (preselectedAllocationId?: string) => {
     if (preselectedAllocationId) {
@@ -87,7 +88,6 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
     }
 
     setIsSubmitting(true);
-    setSubmissionStep('Endorsing peer transaction: AgencyMSP + AuditorMSP validation...');
     try {
       const { distribution, allocation, transaction } = await api.createDistribution({
         allocationId: currentSelectedAllocation.id,
@@ -120,7 +120,7 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
       <PageHeader
         title="Fund distribution to beneficiaries"
         actions={
-          <button type="button" onClick={() => handleOpenRecord()} className={BTN_PRIMARY}>
+          <button type="button" onClick={() => handleOpenRecord()} disabled={activeAllocations.length === 0} className={BTN_PRIMARY}>
             + Record distribution
           </button>
         }
@@ -152,6 +152,7 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
       <section aria-labelledby="avail-h" className={CARD}>
         <div className={SECTION_HEAD}>
           <h2 id="avail-h" className={H2}>Allocated funds available for distribution</h2>
+          <span className="text-[13px] text-text-2">Allocations to {currentUser.organization}</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -168,7 +169,14 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
               </tr>
             </thead>
             <tbody>
-              {allocations.map((item) => {
+              {ownAllocations.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-muted">
+                    No allocations have been made to {currentUser.organization} yet.
+                  </td>
+                </tr>
+              )}
+              {ownAllocations.map((item) => {
                 const hasBalance = item.remainingAmount > 0;
                 return (
                   <tr key={item.id} className="border-b border-divider">
@@ -302,12 +310,12 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
               <label htmlFor="dst-alloc" className={LABEL}>FUND ALLOCATION PROGRAMME *</label>
               <select
                 id="dst-alloc"
-                value={selectedAllocationId}
+                value={currentSelectedAllocation?.id ?? ''}
                 onChange={(e) => setSelectedAllocationId(e.target.value)}
                 disabled={isSubmitting}
                 className={INPUT}
               >
-                {allocations.map((alc) => (
+                {activeAllocations.map((alc) => (
                   <option key={alc.id} value={alc.id}>
                     {alc.programme} (Balance: {formatCurrency(alc.remainingAmount)})
                   </option>
@@ -387,8 +395,8 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
 
             {isSubmitting && (
               <div role="status" className="p-3 border border-border-control bg-page flex flex-col gap-1">
-                <span className="font-semibold text-[13px]">Hyperledger Fabric endorsement &amp; commit</span>
-                <span className="font-mono text-[11px] text-text-2">{submissionStep}</span>
+                <span className="font-semibold text-[13px]">Submitting to Fabric…</span>
+                <span className="font-mono text-[11px] text-text-2">Waiting for AgencyMSP and AuditorMSP to endorse and the block to commit.</span>
               </div>
             )}
           </form>

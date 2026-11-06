@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Allocation, User, Transaction } from '../types';
-import { AVAILABLE_AGENCIES } from '../data/mockData';
+import { AVAILABLE_AGENCIES } from '../data/agencies';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { api } from '../services/api';
 import { AlertCircle, Check, X } from 'lucide-react';
@@ -24,7 +24,6 @@ export const FundAllocation: React.FC<FundAllocationProps> = ({
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionStep, setSubmissionStep] = useState<string>('');
   const [successBanner, setSuccessBanner] = useState<{
     show: boolean;
     txId: string;
@@ -64,7 +63,6 @@ export const FundAllocation: React.FC<FundAllocationProps> = ({
     }
 
     setIsSubmitting(true);
-    setSubmissionStep('Submitting transaction proposal to Hyperledger Fabric endorsing peers...');
     try {
       const { allocation, transaction } = await api.createAllocation({
         programme: programme.trim(),
@@ -352,8 +350,8 @@ export const FundAllocation: React.FC<FundAllocationProps> = ({
 
             {isSubmitting && (
               <div role="status" className="p-3 border border-border-control bg-page flex flex-col gap-1">
-                <span className="font-semibold text-[13px]">Hyperledger Fabric endorsement in progress</span>
-                <span className="font-mono text-[11px] text-text-2">{submissionStep}</span>
+                <span className="font-semibold text-[13px]">Submitting to Fabric…</span>
+                <span className="font-mono text-[11px] text-text-2">Waiting for MinistryMSP and AuditorMSP to endorse and the block to commit.</span>
               </div>
             )}
           </form>

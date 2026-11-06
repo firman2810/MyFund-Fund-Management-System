@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { UserRole, User, Allocation, Distribution, Transaction } from './types';
-import { MOCK_USERS } from './data/mockData';
+import { User, Allocation, Distribution, Transaction } from './types';
 import { api } from './services/api';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
@@ -15,9 +14,8 @@ import { LoadingScreen } from './components/LoadingScreen';
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [currentRole, setCurrentRole] = useState<UserRole>('ministry');
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
-  const [customUser, setCustomUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Ledger state
   const [allocations, setAllocations] = useState<Allocation[]>([]);
@@ -27,36 +25,9 @@ export default function App() {
   // Modal state for viewing a specific transaction
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
-  const currentUser = customUser || MOCK_USERS[currentRole];
-
   const handleTabChangeWithTransition = (newTab: string) => {
     if (newTab === currentTab) return;
     setCurrentTab(newTab);
-  };
-
-  // Role switch handler with smooth transition
-  // Mock-only demo switch (Header hides it otherwise): re-sign-in so the mock attributes records to this role.
-  const handleRoleChange = async (role: UserRole) => {
-    setIsTransitioning(true);
-    const user = await api.login({ identifier: '', password: '', role });
-    setTimeout(() => {
-      setCurrentRole(role);
-      setCustomUser(user);
-      if (role === 'ministry') {
-        if (currentTab === 'distribution' || currentTab === 'reports') {
-          setCurrentTab('allocations');
-        }
-      } else if (role === 'agency') {
-        if (currentTab === 'allocations' || currentTab === 'reports') {
-          setCurrentTab('distribution');
-        }
-      } else if (role === 'auditor') {
-        if (currentTab === 'allocations' || currentTab === 'distribution') {
-          setCurrentTab('reports');
-        }
-      }
-      setIsTransitioning(false);
-    }, 800);
   };
 
   // Throws on failure so LoginScreen can show the error.
@@ -71,8 +42,7 @@ export default function App() {
     setTransactions(txs);
     setIsTransitioning(true);
     setTimeout(() => {
-      setCurrentRole(user.role);
-      setCustomUser(user);
+      setCurrentUser(user);
       setCurrentTab('dashboard');
       setIsLoggedIn(true);
       setIsTransitioning(false);
@@ -112,9 +82,10 @@ export default function App() {
     return <LoadingScreen />;
   }
 
-  if (!isLoggedIn) {
+  if (!isLoggedIn || !currentUser) {
     return <LoginScreen onLogin={handleLogin} />;
   }
+  const currentRole = currentUser.role;
 
   return (
     <div className="min-h-screen bg-page flex flex-col font-sans text-ink antialiased">
@@ -124,7 +95,6 @@ export default function App() {
         currentRole={currentRole}
         currentTab={currentTab}
         onTabChange={handleTabChangeWithTransition}
-        onRoleChange={handleRoleChange}
         onLogout={handleLogout}
       />
 

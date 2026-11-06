@@ -1,10 +1,22 @@
-import React, { useState, useMemo } from 'react';
-import { Allocation, Distribution, Transaction, User } from '../types';
-import { formatCurrency } from '../utils/formatters';
-import { Check } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Allocation, DiscrepancyType, Distribution, Transaction, User, VerificationResult } from '../types';
+import { formatCurrency, formatDate } from '../utils/formatters';
+import { issuesByAllocation } from '../utils/ledger';
+import { api } from '../services/api';
+import { AlertCircle, Check } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { KpiStrip } from './ui/KpiStrip';
-import { BTN_PRIMARY, CARD, CARD_EDITORIAL, H2, INPUT, LABEL, SECTION_HEAD, TH, THEAD_ROW } from './ui/styles';
+import {
+  BTN_PRIMARY, BTN_SECONDARY, CARD, CARD_EDITORIAL, H2, INPUT, LABEL, NOTICE_ERROR, SECTION_HEAD, TH, THEAD_ROW,
+} from './ui/styles';
+
+const FINDING: Record<DiscrepancyType, string> = {
+  VALUE_MISMATCH: 'Value differs',
+  MISSING_FROM_COPY: 'Missing from database',
+  NOT_ON_CHAIN: 'Not on the ledger',
+};
+
+const plural = (n: number) => (n === 1 ? 'discrepancy' : 'discrepancies');
 
 interface MonitoringReportProps {
   currentUser: User;
@@ -25,6 +37,31 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
   const [dateFilter, setDateFilter] = useState<'all' | '30days' | 'q1_2026'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'Fund Allocation' | 'Fund Distribution'>('all');
   const [agencyFilter, setAgencyFilter] = useState<string>('all');
+
+  // Ledger vs database copy check (GET /api/verification); reports only, repairs nothing.
+  const [verification, setVerification] = useState<VerificationResult | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
+
+  const runVerification = async () => {
+    setVerifying(true);
+    setVerifyError('');
+    try {
+      setVerification(await api.getVerification());
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : 'Verification failed.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+  // Every visit to Reports re-checks, so no status on this page is older than the visit.
+  useEffect(() => {
+    runVerification();
+  }, []);
+  const found = verification?.discrepancies.length ?? 0;
+  const issues = verification ? issuesByAllocation(verification.discrepancies, distributions) : null;
+  const ledgerRecord = allocations[0]?.blockchainRecord;
+  const latestBlock = transactions.reduce((max, tx) => Math.max(max, tx.blockchainRecord.blockNumber), 0);
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
@@ -77,6 +114,14 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
       {children}
     </span>
   );
+  const Attention = ({ children }: { children: React.ReactNode }) => (
+    <span className="text-[13px] font-semibold text-remaining-text whitespace-nowrap">{children}</span>
+  );
+  // Statuses come only from the latest verification run: "not checked" never looks like "passed".
+  const sectionStatus = verifyError ? <Attention>Verification unavailable</Attention>
+    : !verification ? <span className="text-[13px] text-muted">Checking against database copy…</span>
+      : found === 0 ? <Verified>Matches database copy · checked {formatDate(verification.checkedAt)}</Verified>
+        : <Attention>{found} {plural(found)}, see verification below</Attention>;
 
   return (
     <div className="flex flex-col gap-6">
@@ -137,7 +182,7 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
       <section aria-labelledby="recon-h" className={CARD}>
         <div className={SECTION_HEAD}>
           <h2 id="recon-h" className={H2}>Programme ledger reconciliation</h2>
-          <Verified>All balances reconciled</Verified>
+          {sectionStatus}
         </div>
 
         <div className="overflow-x-auto">
@@ -156,6 +201,7 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
             <tbody>
               {allocations.map((item) => {
                 const pct = Math.round((item.distributedAmount / item.amount) * 100);
+                const n = issues?.get(item.id) ?? 0;
                 return (
                   <tr key={item.id} className="border-b border-divider">
                     <td className="py-3 pl-6 pr-3 max-w-[280px]">
@@ -172,8 +218,10 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
                       {formatCurrency(item.remainingAmount)}
                     </td>
                     <td className="p-3 text-right font-mono text-xs">{pct}%</td>
-                    {/* Same value on every row, so plain text; the check marks only the section and total verdicts. */}
-                    <td className="py-3 pl-3 pr-6 text-[13px] text-muted whitespace-nowrap">Verified on chain</td>
+                    {/* Plain text when it matches; the check marks only the section and total verdicts. */}
+                    <td className={`py-3 pl-3 pr-6 text-[13px] whitespace-nowrap ${n ? 'font-semibold text-remaining-text' : 'text-muted'}`}>
+                      {!issues ? '—' : n ? `${n} ${n === 1 ? 'difference' : 'differences'}` : 'Matches'}
+                    </td>
                   </tr>
                 );
               })}
@@ -185,18 +233,98 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
                 <td className="p-3 text-right whitespace-nowrap">{formatCurrency(totalDistributed)}</td>
                 <td className="p-3 text-right text-remaining-text whitespace-nowrap">{formatCurrency(remainingFunds)}</td>
                 <td className="p-3 text-right font-mono text-xs">{overallPct}%</td>
-                <td className="py-3 pl-3 pr-6"><Verified>Audit approved</Verified></td>
+                <td className="py-3 pl-3 pr-6">
+                  {!verification ? <span className="text-[13px] font-normal text-muted">—</span>
+                    : found === 0 ? <Verified>All match</Verified> : <Attention>{found} differ</Attention>}
+                </td>
               </tr>
             </tfoot>
           </table>
         </div>
       </section>
 
+      {/* Ledger vs database verification */}
+      <section aria-labelledby="verify-h" className={CARD}>
+        <div className={SECTION_HEAD}>
+          <div className="flex flex-col gap-1.5">
+            <h2 id="verify-h" className={H2}>Ledger vs database verification</h2>
+            <p className="m-0 text-[13px] text-text-2 max-w-[70ch]">
+              Compares every record on the Hyperledger Fabric ledger with the copy kept in the application database,
+              field by field. The ledger is the source of truth: this check reports differences and changes nothing.
+            </p>
+          </div>
+          <button type="button" onClick={runVerification} disabled={verifying} className={`${BTN_SECONDARY} print:hidden`}>
+            {verifying ? 'Verifying…' : verification ? 'Run again' : 'Run verification'}
+          </button>
+        </div>
+
+        <div aria-live="polite" className="px-6 pb-5 flex flex-col gap-3">
+          {verifyError && (
+            <div role="alert" className={NOTICE_ERROR}>
+              <AlertCircle aria-hidden="true" className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{verifyError}</span>
+            </div>
+          )}
+          {!verification && !verifyError && (
+            <p className="m-0 text-[13px] text-muted">{verifying ? 'Checking every record against the database copy…' : 'Not run yet.'}</p>
+          )}
+          {verification && found === 0 && (
+            <p className="m-0 inline-flex items-center gap-1.5 text-[13px]">
+              <Check aria-hidden="true" size={12} strokeWidth={3} />
+              All {verification.recordsChecked} records match the ledger. Checked {formatDate(verification.checkedAt)}.
+            </p>
+          )}
+          {verification && found > 0 && (
+            <div className={NOTICE_ERROR}>
+              <AlertCircle aria-hidden="true" className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                {found} {plural(found)} across {verification.recordsChecked} records, checked {formatDate(verification.checkedAt)}.
+                Figures in this report come from the ledger, not the database.
+              </span>
+            </div>
+          )}
+        </div>
+
+        {verification && found > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse">
+              <thead>
+                <tr className={THEAD_ROW}>
+                  <th scope="col" className={`${TH} pl-6`}>RECORD</th>
+                  <th scope="col" className={TH}>FINDING</th>
+                  <th scope="col" className={TH}>FIELD</th>
+                  <th scope="col" className={TH}>ON LEDGER</th>
+                  <th scope="col" className={`${TH} pr-6`}>IN DATABASE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {verification.discrepancies.map((d, i) => (
+                  <tr key={`${d.recordId}-${d.field ?? d.type}-${i}`} className="border-b border-divider">
+                    <td className="py-3 pl-6 pr-3 font-mono text-xs whitespace-nowrap">{d.recordId}</td>
+                    <td className="p-3 font-semibold">{FINDING[d.type]}</td>
+                    <td className="p-3 font-mono text-xs">{d.field ?? '—'}</td>
+                    <td className="p-3 font-mono text-xs break-all">{d.chainValue ?? '—'}</td>
+                    <td className="py-3 pl-3 pr-6 font-mono text-xs break-all text-remaining-text">{d.copyValue ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       {/* Audit Signature & Endorsement Certificate */}
       <section aria-labelledby="decl-h" className={`${CARD_EDITORIAL} px-6 pt-5 pb-[22px] flex flex-col gap-3`}>
         <h2 id="decl-h" className={H2}>Endorsement &amp; audit verification declaration</h2>
         <p className="m-0 text-sm text-text-2 leading-relaxed max-w-[70ch]">
-          This monitoring report is generated directly from the tamper-proof state database of Hyperledger Fabric (<code className="font-mono text-ink">myfund-channel</code>, chaincode <code className="font-mono text-ink">fund_cc:v1.2</code>). All fund allocations initiated by the Ministry of Finance and subsequent disbursements recorded by accredited agencies have satisfied the multi-organization endorsement policy <code className="font-mono text-ink">AND(&apos;MinistryMSP.peer&apos;, &apos;AuditorMSP.peer&apos;)</code>. No unauthorized ledger modifications or discrepancies were detected.
+          This monitoring report is generated from the Hyperledger Fabric ledger (<code className="font-mono text-ink">{ledgerRecord?.channel ?? 'myfund-channel'}</code>, chaincode <code className="font-mono text-ink">{ledgerRecord?.chaincode ?? 'fund_cc'}</code>). Allocations by the Ministry of Finance are endorsed under <code className="font-mono text-ink">AND(&apos;MinistryMSP.peer&apos;, &apos;AuditorMSP.peer&apos;)</code> and agency disbursements under <code className="font-mono text-ink">AND(&apos;AgencyMSP.peer&apos;, &apos;AuditorMSP.peer&apos;)</code>.{' '}
+          {!verification
+            ? verifying
+              ? 'Verification against the database copy is running.'
+              : 'Run the ledger verification above to confirm the database copy matches the ledger.'
+            : found === 0
+              ? `Verification on ${formatDate(verification.checkedAt)} found no discrepancies between the ledger and the database copy.`
+              : `Verification on ${formatDate(verification.checkedAt)} found ${found} ${plural(found)} between the ledger and the database copy; the ledger figures in this report stand.`}
         </p>
         <dl className="m-0 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-border">
           <div>
@@ -214,7 +342,7 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
             <dd className="m-0 font-mono text-xs font-medium">
               {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
             </dd>
-            <dd className="m-0 font-mono text-[11px] text-muted">CONSENSUS STATE: SYNCHRONIZED</dd>
+            <dd className="m-0 font-mono text-[11px] text-muted">LATEST LEDGER BLOCK #{latestBlock}</dd>
           </div>
         </dl>
       </section>

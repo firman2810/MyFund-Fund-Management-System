@@ -67,7 +67,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             <Field label="AMOUNT">
               <span className="text-xl font-semibold tracking-[-0.02em]">{formatCurrency(transaction.amount)}</span>
             </Field>
-            <Field label="DATE & TIMESTAMP"><span className="font-mono text-xs">{formatDate(transaction.date)}</span></Field>
+            <Field label="BUSINESS DATE"><span className="font-mono text-xs">{formatDate(transaction.date)}</span></Field>
             <Field label="PROGRAMME / PURPOSE" wide><span className="font-semibold">{transaction.programme}</span></Field>
             {transaction.description && (
               <Field label="DESCRIPTION & SCOPE" wide>
@@ -91,6 +91,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             <Field label="CHANNEL"><span className="font-mono text-xs">{rec.channel}</span></Field>
             <Field label="CHAINCODE"><span className="font-mono text-xs">{rec.chaincode}</span></Field>
             <Field label="BLOCK NUMBER"><span className="font-mono text-xs">#{rec.blockNumber}</span></Field>
+            <Field label="LEDGER COMMIT TIME" wide>
+              <span className="font-mono text-xs">{formatDate(rec.timestamp)}</span>
+              <span className="block text-xs text-muted">When Fabric committed the block. The business date above is the date the record refers to.</span>
+            </Field>
             <Field label="TRANSACTION ID (FABRIC TXID)" wide>
               <div className="flex items-start justify-between gap-3">
                 <span className="font-mono text-[11px] break-all">{rec.txId}</span>

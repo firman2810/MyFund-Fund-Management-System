@@ -23,15 +23,6 @@ export function formatDate(dateString: string): string {
   }
 }
 
-export function generateTxHash(): string {
-  const chars = '0123456789abcdef';
-  let hash = '';
-  for (let i = 0; i < 64; i++) {
-    hash += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return hash;
-}
-
 export function truncateHash(hash: string, start = 8, end = 8): string {
   if (!hash || hash.length <= start + end) return hash;
   return `${hash.slice(0, start)}...${hash.slice(-end)}`;

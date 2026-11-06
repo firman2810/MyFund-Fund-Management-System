@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "node scripts/check-mock.mjs"
+    "test": "node scripts/check-formatters.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

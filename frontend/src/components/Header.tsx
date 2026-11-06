@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { api } from '../services/api';
-import { Check, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Logo } from './ui/Logo';
 
 interface HeaderProps {
@@ -9,7 +8,6 @@ interface HeaderProps {
   currentRole: UserRole;
   currentTab: string;
   onTabChange: (tab: string) => void;
-  onRoleChange: (role: UserRole) => void;
   onLogout: () => void;
 }
 
@@ -24,7 +22,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentRole,
   currentTab,
   onTabChange,
-  onRoleChange,
   onLogout,
 }) => {
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
@@ -48,18 +45,13 @@ export const Header: React.FC<HeaderProps> = ({
     ],
   }[currentRole];
 
-  const demoRoles: { role: UserRole; name: string }[] = [
-    { role: 'ministry', name: 'Ministry of Finance' },
-    { role: 'agency', name: 'Agency / NGO (NADMA)' },
-    { role: 'auditor', name: 'National Audit Dept' },
-  ];
-
   // Focus ring is orange on the ink bar (DESIGN.md §8).
   const onBar = 'focus-visible:outline-remaining';
 
   return (
-    <header className="bg-ink text-white print:hidden">
-      <div className="max-w-[1320px] mx-auto px-6 min-h-16 flex flex-wrap items-center gap-x-8 gap-y-3">
+    <header className="sticky top-0 z-40 bg-ink text-white print:hidden">
+      {/* Equal 1fr side columns keep the nav centred on the page, not between logo and profile. */}
+      <div className="max-w-[1320px] mx-auto px-6 min-h-16 flex flex-wrap items-center gap-x-8 gap-y-3 md:grid md:grid-cols-[1fr_auto_1fr]">
         <Logo variant="dark" />
 
         <nav aria-label="Primary" className="flex flex-wrap gap-1">
@@ -107,27 +99,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="font-semibold">{currentUser.name}</span>
                 <span className="text-xs text-text-2">{currentUser.organization}</span>
               </div>
-
-              {api.isMock && (
-                <div className="py-2 border-b border-border">
-                  <div className="font-mono text-[11px] text-muted px-4 py-1">SWITCH ACTIVE ROLE (FYP DEMO)</div>
-                  {demoRoles.map((r) => (
-                    <button
-                      key={r.role}
-                      type="button"
-                      onClick={() => {
-                        onRoleChange(r.role);
-                        setRoleDropdownOpen(false);
-                      }}
-                      aria-current={currentRole === r.role ? 'true' : undefined}
-                      className="w-full min-h-11 text-left px-4 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-page"
-                    >
-                      <span className={currentRole === r.role ? 'font-semibold' : 'font-medium'}>{r.name}</span>
-                      {currentRole === r.role && <Check aria-hidden="true" size={14} strokeWidth={3} />}
-                    </button>
-                  ))}
-                </div>
-              )}
 
               <button
                 type="button"
