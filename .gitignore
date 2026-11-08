@@ -39,3 +39,9 @@ logs/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Dissertation evaluation run (local only)
+smart-contract/evaluate.sh
+smart-contract/eval/
+smart-contract/eval.*/
+smart-contract/eval-tools/
