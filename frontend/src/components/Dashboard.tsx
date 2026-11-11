@@ -1,13 +1,13 @@
 import React from 'react';
 import { User, Allocation, Transaction, UserRole } from '../types';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/formatters';
 import { ledgerEvents } from '../utils/ledger';
 import { KpiStrip } from './ui/KpiStrip';
 import { StepChart } from './ui/StepChart';
-import { DataTable } from './ui/DataTable';
+import { TypeTag } from './ui/TypeTag';
 import { Pagination, usePage } from './ui/Pagination';
 import { PageHeader } from './ui/PageHeader';
-import { BTN_PRIMARY, LINK, CARD, H2, SECTION_HEAD } from './ui/styles';
+import { BTN_PRIMARY, BTN_ROW, LINK, CARD, H2 } from './ui/styles';
 
 interface DashboardProps {
   currentUser: User;
@@ -129,15 +129,46 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <Pagination {...programmes} label="Programme" />
       </section>
 
-      {/* Recent Transactions Table */}
-      <section aria-labelledby="tx-h" className={`${CARD} flex flex-col`}>
-        <div className={SECTION_HEAD}>
+      {/* Recent transactions: same row type as Active programmes (16px name, 13px detail, big figure on the right) */}
+      <section aria-labelledby="tx-h" className={`${CARD} px-6 py-5 flex flex-col gap-1`}>
+        <div className="flex justify-between items-baseline gap-3 pb-2">
           <h2 id="tx-h" className={H2}>Recent transaction records</h2>
           <button type="button" onClick={() => onNavigateTab('transactions')} className={LINK}>
             View complete transaction history →
           </button>
         </div>
-        <DataTable transactions={recentTransactions} onView={onViewTransaction} />
+        {recentTransactions.length === 0 && (
+          <p className="m-0 border-t border-border py-6 text-center text-[13px] text-muted">No transactions recorded yet.</p>
+        )}
+        {recentTransactions.map((tx) => (
+          // Below lg: programme | amount, then details | action. From lg: programme | type, ID, date | amount | action.
+          // The amount column is a fixed 10rem (fits RM 10,000,000 at 22px) so the middle column lines up across rows.
+          <article
+            key={tx.id}
+            className="border-t border-border py-3.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 items-center lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_10rem_auto] lg:gap-6"
+          >
+            <span className="flex flex-col min-w-0">
+              <span className="text-base font-semibold leading-[1.3] truncate" title={tx.programme}>{tx.programme}</span>
+              <span className="text-[13px] text-muted truncate" title={`${tx.from} → ${tx.to}`}>{tx.from} → {tx.to}</span>
+            </span>
+            <span className="row-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-2 tabular-nums min-w-0 lg:col-start-2 lg:row-start-1">
+              <TypeTag type={tx.type} />
+              <span className="font-mono">{tx.id}</span>
+              <span>{formatDate(tx.date)}</span>
+            </span>
+            <span className="col-start-2 row-start-1 justify-self-end text-[22px] font-semibold tracking-[-0.02em] tabular-nums whitespace-nowrap lg:col-start-3">
+              {formatCurrency(tx.amount)}
+            </span>
+            <button
+              type="button"
+              onClick={() => onViewTransaction(tx)}
+              aria-label={`Details for ${tx.id}`}
+              className={`${BTN_ROW} col-start-2 row-start-2 justify-self-end lg:col-start-4 lg:row-start-1`}
+            >
+              Details
+            </button>
+          </article>
+        ))}
       </section>
     </div>
   );
