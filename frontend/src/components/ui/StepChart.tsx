@@ -153,6 +153,24 @@ export const StepChart: React.FC<{ transactions: Transaction[]; onView?: (tx: Tr
     if (!to || !wrap.current?.contains(to)) closeSoon();
   };
 
+  // Pointer → nearest marker within 16px. Clustered markers' hit areas overlap, so DOM hit-testing would always
+  // pick the one drawn last instead of the one under the pointer.
+  const nearest = (e: React.MouseEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - r.left;
+    const py = e.clientY - r.top;
+    let best = -1;
+    let bestD = 16 * 16;
+    events.forEach((ev, i) => {
+      const d = (x(ev.time) - px) ** 2 + (markerY(i) - py) ** 2;
+      if (d <= bestD) {
+        best = i;
+        bestD = d;
+      }
+    });
+    return best;
+  };
+
   const activeX = active !== null ? x(events[active].time) : 0;
   const tipWidth = Math.min(TIP_W, boxW || TIP_W);
   const tipLeft = Math.max(0, Math.min(activeX - scrollX - tipWidth / 2, (boxW || W) - tipWidth));
@@ -166,7 +184,27 @@ export const StepChart: React.FC<{ transactions: Transaction[]; onView?: (tx: Tr
       </div>
       <div ref={wrap} className="relative">
         <div ref={scroller} className="overflow-x-auto" onScroll={(e) => setScrollX(e.currentTarget.scrollLeft)}>
-          <svg role="group" aria-label={aria} width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block">
+          <svg
+            role="group"
+            aria-label={aria}
+            width={W}
+            height={H}
+            viewBox={`0 0 ${W} ${H}`}
+            className="block"
+            onMouseMove={(e) => {
+              const i = nearest(e);
+              if (i >= 0) open(i);
+              else closeSoon();
+            }}
+            onMouseLeave={closeSoon}
+            onClick={(e) => {
+              // A tap (or click) pins the popover until a tap outside the chart.
+              const i = nearest(e);
+              if (i < 0) return;
+              pinnedRef.current = true;
+              open(i);
+            }}
+          >
             <g aria-hidden="true" fontFamily="Geist Mono, monospace" fontSize="11" fill="var(--text-muted)">
               {grid.map((v) => (
                 <g key={v}>
@@ -200,12 +238,6 @@ export const StepChart: React.FC<{ transactions: Transaction[]; onView?: (tx: Tr
                   aria-label={`${e.tx.id}, ${isAlc ? 'allocation' : 'distribution'}, ${formatCurrency(e.tx.amount)}, ${formatDay(e.tx.date)}, ${agencyCode(e.tx.from)} to ${e.tx.to}`}
                   aria-describedby={active === i ? tipId : undefined}
                   className="cursor-pointer outline-none"
-                  onMouseEnter={() => open(i)}
-                  onMouseLeave={closeSoon}
-                  onClick={() => {
-                    pinnedRef.current = true;
-                    open(i);
-                  }}
                   onFocus={() => {
                     setFocused(i);
                     setRoving(i);
