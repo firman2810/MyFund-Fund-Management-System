@@ -4,7 +4,6 @@ import { formatCurrency } from '../utils/formatters';
 import { ledgerEvents } from '../utils/ledger';
 import { KpiStrip } from './ui/KpiStrip';
 import { StepChart } from './ui/StepChart';
-import { BlockCard } from './ui/BlockCard';
 import { DataTable } from './ui/DataTable';
 import { Pagination, usePage } from './ui/Pagination';
 import { PageHeader } from './ui/PageHeader';
@@ -38,8 +37,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const remainingFunds = totalAllocated - totalDistributed;
 
   const totalTxCount = transactions.length;
-  const recentTransactions = transactions.slice(0, 5);
-  const latestBlocks = ledgerEvents(transactions).slice(-5); // oldest -> newest, left to right
+  // The newest 5 chart events, newest first: one source, so the table always matches the chart's last markers.
+  const recentTransactions = ledgerEvents(transactions).slice(-5).reverse().map((e) => e.tx);
   const programmes = usePage(allocations.length, 5);
 
   const programmesLink = {
@@ -86,14 +85,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Ledger chain */}
       <section aria-labelledby="chain-h" className={`${CARD} px-6 py-[22px] flex flex-col gap-4`}>
         <h2 id="chain-h" className={H2}>Fund Utilization Overview</h2>
-        <StepChart transactions={transactions} />
-        <ol aria-label="Latest committed blocks, oldest first" className="list-none m-0 p-0 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
-          {latestBlocks.map((e) => (
-            <li key={e.tx.id} className="min-w-0">
-              <BlockCard tx={e.tx} />
-            </li>
-          ))}
-        </ol>
+        <StepChart transactions={transactions} onView={onViewTransaction} />
       </section>
 
       {/* Programme rows */}
@@ -108,23 +100,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {allocations.slice(programmes.start, programmes.end).map((alc) => {
           const alcPct = pctOf(alc);
           return (
-            <article key={alc.id} className="border-t border-border py-3.5 flex flex-col gap-2">
-              <div className="flex justify-between gap-4">
-                <span className="flex flex-col min-w-0">
-                  <span className="font-semibold">{alc.programme}</span>
-                  <span className="text-xs text-muted">{alc.receivingAgency}</span>
-                </span>
-                <span className="font-mono text-[22px] font-medium tracking-[-0.02em]">{alcPct}%</span>
+            // Stacked below lg (name + %, then bar, then figures); one row of name | bar + figures | % from lg up.
+            <article
+              key={alc.id}
+              className="border-t border-border py-3.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto] lg:items-center lg:gap-6"
+            >
+              <span className="flex flex-col min-w-0">
+                <span className="text-base font-semibold leading-[1.3]">{alc.programme}</span>
+                <span className="text-[13px] text-muted">{alc.receivingAgency}</span>
+              </span>
+              <div className="col-span-2 row-start-2 flex flex-col gap-2 min-w-0 lg:col-span-1 lg:col-start-2 lg:row-start-1">
+                <div aria-hidden="true" className="flex h-2 gap-0.5">
+                  <span className="bg-distributed" style={{ width: `${alcPct}%` }} />
+                  <span className="flex-1 bg-remaining" />
+                </div>
+                <p className="m-0 text-[13px] text-text-2 tabular-nums">
+                  <span className="font-semibold text-remaining-text">{formatCurrency(alc.amount - alc.distributedAmount)} left</span>
+                  {' '}of {formatCurrency(alc.amount)} · {formatCurrency(alc.distributedAmount)} distributed
+                </p>
               </div>
-              <div aria-hidden="true" className="flex h-2 gap-0.5">
-                <span className="bg-distributed" style={{ width: `${alcPct}%` }} />
-                <span className="flex-1 bg-remaining" />
-              </div>
-              <div className="flex justify-between flex-wrap gap-2 font-mono text-xs text-text-2">
-                <span>DIST {formatCurrency(alc.distributedAmount)}</span>
-                <span className="text-remaining-text">LEFT {formatCurrency(alc.amount - alc.distributedAmount)}</span>
-                <span>TOTAL {formatCurrency(alc.amount)}</span>
-              </div>
+              <span className="col-start-2 row-start-1 font-mono text-[22px] font-medium tracking-[-0.02em] lg:col-start-3">
+                {alcPct}%<span className="sr-only"> distributed</span>
+              </span>
             </article>
           );
         })}

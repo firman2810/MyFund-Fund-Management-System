@@ -13,7 +13,8 @@ export function ledgerEvents(transactions: Transaction[]): LedgerEvent[] {
   let ceiling = 0;
   return transactions
     .map((tx) => ({ tx, time: new Date(tx.date).getTime() }))
-    .sort((a, b) => a.time - b.time)
+    // Equal timestamps fall back to the ID, so every view of the ledger lists ties the same way.
+    .sort((a, b) => a.time - b.time || (a.tx.id < b.tx.id ? -1 : a.tx.id > b.tx.id ? 1 : 0))
     .map(({ tx, time }) => {
       if (tx.type === 'Fund Allocation') ceiling += tx.amount;
       else distributed += tx.amount;

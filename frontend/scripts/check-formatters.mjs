@@ -47,6 +47,18 @@ try {
   assert.equal(pos().length, 4); // no end = current position
   assert.deepEqual(pos()[1], ['ALC-002', 5600000, 2400000]);
 
+  // Equal timestamps sort by id, whatever order they arrive in, so the chart and the recent table agree.
+  const tied = ledgerEvents([tx('Fund Distribution', 1, '2026-11-08 10:00:00'), tx('Fund Allocation', 5, '2026-11-08 10:00:00')]
+    .map((t, i) => ({ ...t, id: ['TX-DST-2026-119', 'TX-ALC-2026-115'][i] })));
+  assert.deepEqual(tied.map((e) => e.tx.id), ['TX-ALC-2026-115', 'TX-DST-2026-119']);
+
+  // Chart marker labels: keep the first, drop near neighbours, always keep the last (it beats a close neighbour).
+  const { visibleLabels } = await server.ssrLoadModule('/src/components/ui/StepChart.tsx');
+  assert.deepEqual(visibleLabels([0, 10, 100, 130, 200, 210], 56), [true, false, true, false, false, true]);
+  assert.deepEqual(visibleLabels([0, 60, 120], 56), [true, true, true]);
+  assert.deepEqual(visibleLabels([5], 56), [true]);
+  assert.deepEqual(visibleLabels([], 56), []);
+
   // Pagination window: empty list, partial last page, out-of-range page clamped.
   const { pageRange } = await server.ssrLoadModule('/src/components/ui/Pagination.tsx');
   assert.deepEqual(pageRange(0, 10, 1), { page: 1, pages: 1, start: 0, end: 0 });
