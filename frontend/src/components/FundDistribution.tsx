@@ -44,6 +44,8 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
   // Only this agency's allocations: the contract refuses spending another agency's (names must match exactly).
   const ownAllocations = allocations.filter((a) => a.receivingAgency === currentUser.organization);
   const activeAllocations = ownAllocations.filter((a) => a.remainingAmount > 0);
+  // Same rule for the records below: an agency sees its own distributions only.
+  const ownDistributions = distributions.filter((d) => d.agencyName === currentUser.organization);
   const currentSelectedAllocation = activeAllocations.find((a) => a.id === selectedAllocationId) || activeAllocations[0];
 
   const handleOpenRecord = (preselectedAllocationId?: string) => {
@@ -216,7 +218,7 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
           <h2 id="dst-h" className={H2}>Beneficiary distribution records</h2>
           <span className="font-mono text-xs text-text-2 flex items-center gap-1.5">
             <span aria-hidden="true" className="w-2 h-2 bg-distributed" />
-            DISBURSED {formatCurrency(distributions.reduce((s, d) => s + d.amount, 0))}
+            DISBURSED {formatCurrency(ownDistributions.reduce((s, d) => s + d.amount, 0))}
           </span>
         </div>
 
@@ -234,7 +236,7 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
               </tr>
             </thead>
             <tbody>
-              {distributions.map((dst) => (
+              {ownDistributions.map((dst) => (
                 <tr key={dst.id} className="border-b border-divider">
                   <td className="py-3 pl-6 pr-3 font-mono text-xs whitespace-nowrap">{dst.id}</td>
                   <td className="p-3 max-w-[220px]">
@@ -374,9 +376,13 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   disabled={isSubmitting}
+                  aria-describedby="dst-amount-readback"
                   className={`${INPUT} pl-10 font-mono`}
                 />
               </div>
+                <span id="dst-amount-readback" aria-live="polite" className="block text-[13px] text-text-2 mt-1.5">
+                  {Number(amount) > 0 ? formatCurrency(Number(amount)) : ''}
+                </span>
             </div>
 
             <div>

@@ -303,9 +303,13 @@ export const FundAllocation: React.FC<FundAllocationProps> = ({
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     disabled={isSubmitting}
+                    aria-describedby="alc-amount-readback"
                     className={`${INPUT} pl-10 font-mono`}
                   />
                 </div>
+                  <span id="alc-amount-readback" aria-live="polite" className="block text-[13px] text-text-2 mt-1.5">
+                    {Number(amount) > 0 ? formatCurrency(Number(amount)) : ''}
+                  </span>
               </div>
 
               <div>

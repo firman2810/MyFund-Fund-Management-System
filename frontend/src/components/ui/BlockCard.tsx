@@ -2,8 +2,8 @@ import React from 'react';
 import { Transaction } from '../../types';
 import { formatCurrency, formatDateShort, agencyCode } from '../../utils/formatters';
 
-// Ledger entry card. runningLabel is the total after this entry, e.g. "Σ 21.05M" or "CAP 32.5M".
-export const BlockCard: React.FC<{ tx: Transaction; runningLabel: string }> = ({ tx, runningLabel }) => {
+// Ledger entry card: ID and type, amount, from → to, date.
+export const BlockCard: React.FC<{ tx: Transaction }> = ({ tx }) => {
   const isAlc = tx.type === 'Fund Allocation';
   return (
     <article className="h-full border-[1.5px] border-ink flex flex-col bg-surface">
@@ -20,9 +20,8 @@ export const BlockCard: React.FC<{ tx: Transaction; runningLabel: string }> = ({
         <span className="text-xs text-text-2 truncate" title={`${tx.from} → ${tx.to}`}>
           {agencyCode(tx.from)} → {tx.to}
         </span>
-        <div className="flex justify-between pt-2 border-t border-dashed border-border-control font-mono text-[11px] text-muted">
+        <div className="pt-2 border-t border-dashed border-border-control font-mono text-[11px] text-muted">
           <span>{formatDateShort(tx.date)}</span>
-          <span>{runningLabel}</span>
         </div>
       </div>
     </article>

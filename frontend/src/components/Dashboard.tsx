@@ -1,11 +1,12 @@
 import React from 'react';
 import { User, Allocation, Transaction, UserRole } from '../types';
-import { formatCurrency, formatMillions } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
 import { ledgerEvents } from '../utils/ledger';
 import { KpiStrip } from './ui/KpiStrip';
 import { StepChart } from './ui/StepChart';
 import { BlockCard } from './ui/BlockCard';
 import { DataTable } from './ui/DataTable';
+import { Pagination, usePage } from './ui/Pagination';
 import { PageHeader } from './ui/PageHeader';
 import { BTN_PRIMARY, LINK, CARD, H2, SECTION_HEAD } from './ui/styles';
 
@@ -39,6 +40,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const totalTxCount = transactions.length;
   const recentTransactions = transactions.slice(0, 5);
   const latestBlocks = ledgerEvents(transactions).slice(-5); // oldest -> newest, left to right
+  const programmes = usePage(allocations.length, 5);
 
   const programmesLink = {
     ministry: { tab: 'allocations', label: 'Fund allocation →' },
@@ -88,24 +90,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <ol aria-label="Latest committed blocks, oldest first" className="list-none m-0 p-0 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
           {latestBlocks.map((e) => (
             <li key={e.tx.id} className="min-w-0">
-              <BlockCard
-                tx={e.tx}
-                runningLabel={e.tx.type === 'Fund Allocation' ? `CAP ${formatMillions(e.ceiling)}` : `Σ ${formatMillions(e.distributed)}`}
-              />
+              <BlockCard tx={e.tx} />
             </li>
           ))}
         </ol>
       </section>
 
       {/* Programme rows */}
-      <section aria-labelledby="prog-h" className={`${CARD} px-6 py-5 flex flex-col gap-1`}>
+      <section aria-labelledby="prog-h" className={`${CARD} flex flex-col`}>
+        <div className="px-6 py-5 flex flex-col gap-1">
         <div className="flex justify-between items-baseline gap-3 pb-2">
           <h2 id="prog-h" className={H2}>Active programmes</h2>
           <button type="button" onClick={() => onNavigateTab(programmesLink.tab)} className={LINK}>
             {programmesLink.label}
           </button>
         </div>
-        {allocations.map((alc) => {
+        {allocations.slice(programmes.start, programmes.end).map((alc) => {
           const alcPct = pctOf(alc);
           return (
             <article key={alc.id} className="border-t border-border py-3.5 flex flex-col gap-2">
@@ -128,6 +128,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </article>
           );
         })}
+        </div>
+        <Pagination {...programmes} label="Programme" />
       </section>
 
       {/* Recent Transactions Table */}
