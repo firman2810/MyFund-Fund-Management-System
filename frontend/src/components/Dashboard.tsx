@@ -101,9 +101,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
           const alcPct = pctOf(alc);
           return (
             // Stacked below lg (name + %, then bar, then figures); one row of name | bar + figures | % from lg up.
+            // Column 1 is 38% in both this list and Recent records, so their middle columns start at the same x;
+            // the % column is a fixed 4rem so every bar starts and ends at the same place.
             <article
               key={alc.id}
-              className="border-t border-border py-3.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto] lg:items-center lg:gap-6"
+              className="border-t border-border py-3.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 lg:grid-cols-[minmax(0,38%)_minmax(0,1fr)_4rem] lg:items-center lg:gap-6"
             >
               <span className="flex flex-col min-w-0">
                 <span className="text-base font-semibold leading-[1.3]">{alc.programme}</span>
@@ -119,7 +121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   {' '}of {formatCurrency(alc.amount)} · {formatCurrency(alc.distributedAmount)} distributed
                 </p>
               </div>
-              <span className="col-start-2 row-start-1 font-mono text-[22px] font-medium tracking-[-0.02em] lg:col-start-3">
+              <span className="col-start-2 row-start-1 justify-self-end font-mono text-[22px] font-medium tracking-[-0.02em] tabular-nums lg:col-start-3">
                 {alcPct}%<span className="sr-only"> distributed</span>
               </span>
             </article>
@@ -142,17 +144,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
         )}
         {recentTransactions.map((tx) => (
           // Below lg: programme | amount, then details | action. From lg: programme | type, ID, date | amount | action.
-          // The amount column is a fixed 10rem (fits RM 10,000,000 at 22px) so the middle column lines up across rows.
+          // Same 38% first column as Active programmes; the amount column is a fixed 10rem (fits RM 10,000,000 at 22px).
           <article
             key={tx.id}
-            className="border-t border-border py-3.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 items-center lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_10rem_auto] lg:gap-6"
+            className="border-t border-border py-3.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 items-center lg:grid-cols-[minmax(0,38%)_minmax(0,1fr)_10rem_auto] lg:gap-6"
           >
             <span className="flex flex-col min-w-0">
               <span className="text-base font-semibold leading-[1.3] truncate" title={tx.programme}>{tx.programme}</span>
               <span className="text-[13px] text-muted truncate" title={`${tx.from} → ${tx.to}`}>{tx.from} → {tx.to}</span>
             </span>
             <span className="row-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-2 tabular-nums min-w-0 lg:col-start-2 lg:row-start-1">
-              <TypeTag type={tx.type} />
+              {/* Fixed slot (fits DISTRIBUTION) so the ID and date line up whichever tag the row has */}
+              <span className="w-[6.5rem] shrink-0"><TypeTag type={tx.type} /></span>
               <span className="font-mono">{tx.id}</span>
               <span>{formatDate(tx.date)}</span>
             </span>
