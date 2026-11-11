@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { AlertCircle, Check, X } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { Modal } from './ui/Modal';
+import { Pagination, usePage } from './ui/Pagination';
 import {
   BTN_PRIMARY, BTN_SECONDARY, BTN_ROW, CARD, H2, INPUT, LABEL, NOTICE_ERROR, NOTICE_OK, SECTION_HEAD, TH, THEAD_ROW,
 } from './ui/styles';
@@ -46,6 +47,8 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
   const activeAllocations = ownAllocations.filter((a) => a.remainingAmount > 0);
   // Same rule for the records below: an agency sees its own distributions only.
   const ownDistributions = distributions.filter((d) => d.agencyName === currentUser.organization);
+  // 20 per page; a new distribution (it sorts first) sends the table back to page 1.
+  const pager = usePage(ownDistributions.length, 20, String(ownDistributions.length));
   const currentSelectedAllocation = activeAllocations.find((a) => a.id === selectedAllocationId) || activeAllocations[0];
 
   const handleOpenRecord = (preselectedAllocationId?: string) => {
@@ -236,7 +239,7 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
               </tr>
             </thead>
             <tbody>
-              {ownDistributions.map((dst) => (
+              {ownDistributions.slice(pager.start, pager.end).map((dst) => (
                 <tr key={dst.id} className="border-b border-divider">
                   <td className="py-3 pl-6 pr-3 font-mono text-xs whitespace-nowrap">{dst.id}</td>
                   <td className="p-3 max-w-[220px]">
@@ -278,6 +281,7 @@ export const FundDistribution: React.FC<FundDistributionProps> = ({
             </tbody>
           </table>
         </div>
+        <Pagination {...pager} label="Distribution" />
       </section>
 
       {/* RECORD DISTRIBUTION MODAL */}
