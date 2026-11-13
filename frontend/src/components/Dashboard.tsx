@@ -1,13 +1,13 @@
 import React from 'react';
 import { User, Allocation, Transaction, UserRole } from '../types';
-import { formatCurrency, formatMillions } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/formatters';
 import { ledgerEvents } from '../utils/ledger';
 import { KpiStrip } from './ui/KpiStrip';
 import { StepChart } from './ui/StepChart';
-import { BlockCard } from './ui/BlockCard';
-import { DataTable } from './ui/DataTable';
+import { TypeTag } from './ui/TypeTag';
+import { Pagination, usePage } from './ui/Pagination';
 import { PageHeader } from './ui/PageHeader';
-import { BTN_PRIMARY, LINK, CARD, H2, SECTION_HEAD } from './ui/styles';
+import { BTN_PRIMARY, BTN_ROW, LINK, CARD, H2 } from './ui/styles';
 
 interface DashboardProps {
   currentUser: User;
@@ -37,8 +37,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const remainingFunds = totalAllocated - totalDistributed;
 
   const totalTxCount = transactions.length;
-  const recentTransactions = transactions.slice(0, 5);
-  const latestBlocks = ledgerEvents(transactions).slice(-5); // oldest -> newest, left to right
+  // The newest 5 chart events, newest first: one source, so the table always matches the chart's last markers.
+  const recentTransactions = ledgerEvents(transactions).slice(-5).reverse().map((e) => e.tx);
+  const programmes = usePage(allocations.length, 5);
 
   const programmesLink = {
     ministry: { tab: 'allocations', label: 'Fund allocation →' },
@@ -84,61 +85,93 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Ledger chain */}
       <section aria-labelledby="chain-h" className={`${CARD} px-6 py-[22px] flex flex-col gap-4`}>
         <h2 id="chain-h" className={H2}>Fund Utilization Overview</h2>
-        <StepChart transactions={transactions} />
-        <ol aria-label="Latest committed blocks, oldest first" className="list-none m-0 p-0 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
-          {latestBlocks.map((e) => (
-            <li key={e.tx.id} className="min-w-0">
-              <BlockCard
-                tx={e.tx}
-                runningLabel={e.tx.type === 'Fund Allocation' ? `CAP ${formatMillions(e.ceiling)}` : `Σ ${formatMillions(e.distributed)}`}
-              />
-            </li>
-          ))}
-        </ol>
+        <StepChart transactions={transactions} onView={onViewTransaction} />
       </section>
 
       {/* Programme rows */}
-      <section aria-labelledby="prog-h" className={`${CARD} px-6 py-5 flex flex-col gap-1`}>
+      <section aria-labelledby="prog-h" className={`${CARD} flex flex-col`}>
+        <div className="px-6 py-5 flex flex-col gap-1">
         <div className="flex justify-between items-baseline gap-3 pb-2">
           <h2 id="prog-h" className={H2}>Active programmes</h2>
           <button type="button" onClick={() => onNavigateTab(programmesLink.tab)} className={LINK}>
             {programmesLink.label}
           </button>
         </div>
-        {allocations.map((alc) => {
+        {allocations.slice(programmes.start, programmes.end).map((alc) => {
           const alcPct = pctOf(alc);
           return (
-            <article key={alc.id} className="border-t border-border py-3.5 flex flex-col gap-2">
-              <div className="flex justify-between gap-4">
-                <span className="flex flex-col min-w-0">
-                  <span className="font-semibold">{alc.programme}</span>
-                  <span className="text-xs text-muted">{alc.receivingAgency}</span>
-                </span>
-                <span className="font-mono text-[22px] font-medium tracking-[-0.02em]">{alcPct}%</span>
+            // Stacked below lg (name + %, then bar, then figures); one row of name | bar + figures | % from lg up.
+            // Column 1 is 38% in both this list and Recent records, so their middle columns start at the same x;
+            // the % column is a fixed 4rem so every bar starts and ends at the same place.
+            <article
+              key={alc.id}
+              className="border-t border-border py-3.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 lg:grid-cols-[minmax(0,38%)_minmax(0,1fr)_4rem] lg:items-center lg:gap-6"
+            >
+              <span className="flex flex-col min-w-0">
+                <span className="text-base font-semibold leading-[1.3]">{alc.programme}</span>
+                <span className="text-[13px] text-muted">{alc.receivingAgency}</span>
+              </span>
+              <div className="col-span-2 row-start-2 flex flex-col gap-2 min-w-0 lg:col-span-1 lg:col-start-2 lg:row-start-1">
+                <div aria-hidden="true" className="flex h-2 gap-0.5">
+                  <span className="bg-distributed" style={{ width: `${alcPct}%` }} />
+                  <span className="flex-1 bg-remaining" />
+                </div>
+                <p className="m-0 text-[13px] text-text-2 tabular-nums">
+                  <span className="font-semibold text-remaining-text">{formatCurrency(alc.amount - alc.distributedAmount)} left</span>
+                  {' '}of {formatCurrency(alc.amount)} · {formatCurrency(alc.distributedAmount)} distributed
+                </p>
               </div>
-              <div aria-hidden="true" className="flex h-2 gap-0.5">
-                <span className="bg-distributed" style={{ width: `${alcPct}%` }} />
-                <span className="flex-1 bg-remaining" />
-              </div>
-              <div className="flex justify-between flex-wrap gap-2 font-mono text-xs text-text-2">
-                <span>DIST {formatCurrency(alc.distributedAmount)}</span>
-                <span className="text-remaining-text">LEFT {formatCurrency(alc.amount - alc.distributedAmount)}</span>
-                <span>TOTAL {formatCurrency(alc.amount)}</span>
-              </div>
+              <span className="col-start-2 row-start-1 justify-self-end font-mono text-[22px] font-medium tracking-[-0.02em] tabular-nums lg:col-start-3">
+                {alcPct}%<span className="sr-only"> distributed</span>
+              </span>
             </article>
           );
         })}
+        </div>
+        <Pagination {...programmes} label="Programme" />
       </section>
 
-      {/* Recent Transactions Table */}
-      <section aria-labelledby="tx-h" className={`${CARD} flex flex-col`}>
-        <div className={SECTION_HEAD}>
+      {/* Recent transactions: same row type as Active programmes (16px name, 13px detail, big figure on the right) */}
+      <section aria-labelledby="tx-h" className={`${CARD} px-6 py-5 flex flex-col gap-1`}>
+        <div className="flex justify-between items-baseline gap-3 pb-2">
           <h2 id="tx-h" className={H2}>Recent transaction records</h2>
           <button type="button" onClick={() => onNavigateTab('transactions')} className={LINK}>
             View complete transaction history →
           </button>
         </div>
-        <DataTable transactions={recentTransactions} onView={onViewTransaction} />
+        {recentTransactions.length === 0 && (
+          <p className="m-0 border-t border-border py-6 text-center text-[13px] text-muted">No transactions recorded yet.</p>
+        )}
+        {recentTransactions.map((tx) => (
+          // Below lg: programme | amount, then details | action. From lg: programme | type, ID, date | amount | action.
+          // Same 38% first column as Active programmes; the amount column is a fixed 10rem (fits RM 10,000,000 at 22px).
+          <article
+            key={tx.id}
+            className="border-t border-border py-3.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 items-center lg:grid-cols-[minmax(0,38%)_minmax(0,1fr)_10rem_auto] lg:gap-6"
+          >
+            <span className="flex flex-col min-w-0">
+              <span className="text-base font-semibold leading-[1.3] truncate" title={tx.programme}>{tx.programme}</span>
+              <span className="text-[13px] text-muted truncate" title={`${tx.from} → ${tx.to}`}>{tx.from} → {tx.to}</span>
+            </span>
+            <span className="row-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-2 tabular-nums min-w-0 lg:col-start-2 lg:row-start-1">
+              {/* Fixed slot (fits DISTRIBUTION) so the ID and date line up whichever tag the row has */}
+              <span className="w-[6.5rem] shrink-0"><TypeTag type={tx.type} /></span>
+              <span className="font-mono">{tx.id}</span>
+              <span>{formatDate(tx.date)}</span>
+            </span>
+            <span className="col-start-2 row-start-1 justify-self-end text-[22px] font-semibold tracking-[-0.02em] tabular-nums whitespace-nowrap lg:col-start-3">
+              {formatCurrency(tx.amount)}
+            </span>
+            <button
+              type="button"
+              onClick={() => onViewTransaction(tx)}
+              aria-label={`Details for ${tx.id}`}
+              className={`${BTN_ROW} col-start-2 row-start-2 justify-self-end lg:col-start-4 lg:row-start-1`}
+            >
+              Details
+            </button>
+          </article>
+        ))}
       </section>
     </div>
   );

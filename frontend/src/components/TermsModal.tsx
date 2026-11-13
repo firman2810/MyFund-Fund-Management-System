@@ -8,7 +8,8 @@ interface TermsModalProps {
   onClose: () => void;
 }
 
-const H4 = 'm-0 mb-1 font-semibold text-[15px] text-ink';
+// Section headings sit under the dialog's h2 title.
+const H3 = 'm-0 mb-1 font-semibold text-[15px] text-ink';
 
 export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -32,28 +33,28 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div>
-          <h4 className={H4}>1. Authorized institutional use</h4>
+          <h3 className={H3}>1. Authorized institutional use</h3>
           <p className="m-0">
             Access to this system is restricted to vetted personnel of the Federal Treasury, accredited executing agencies (such as NADMA, MRCS, KEMAS), and statutory audit authorities. Credentials must not be shared.
           </p>
         </div>
 
         <div>
-          <h4 className={H4}>2. Cryptographic immutability</h4>
+          <h3 className={H3}>2. Cryptographic immutability</h3>
           <p className="m-0">
             Every transaction submitted through this portal requires cryptographic peer endorsement under defined multi-party policies. Once committed to a ledger block, records cannot be altered, forged, or deleted.
           </p>
         </div>
 
         <div>
-          <h4 className={H4}>3. Accountability &amp; audit trail</h4>
+          <h3 className={H3}>3. Accountability &amp; audit trail</h3>
           <p className="m-0">
             All allocation requests, beneficiary distributions, and approval timestamps are permanently preserved for statutory scrutiny by the National Audit Department.
           </p>
         </div>
 
         <div>
-          <h4 className={H4}>4. Data protection &amp; beneficiary privacy</h4>
+          <h3 className={H3}>4. Data protection &amp; beneficiary privacy</h3>
           <p className="m-0">
             Personal details of welfare recipients are handled strictly in compliance with applicable public data governance and statutory welfare regulations.
           </p>
