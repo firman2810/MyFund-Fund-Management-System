@@ -17,9 +17,17 @@
 
 ## About
 
-A ministry allocates funds to agencies, agencies record how they spend them, and an auditor monitors the flow.
+**MyFund** is a prototype for tracking government funds, from the ministry to the people who receive them.
 
-Every transaction is recorded on **Hyperledger Fabric**. A smart contract enforces the rules, so not even the backend can bypass them.
+Public money passes through several hands, and records kept in one central database can be changed without a trace. MyFund records every step on a blockchain instead.
+
+- **Ministry** allocates funds to agencies/NGOs.
+- **Agencies** record each distribution to beneficiaries.
+- **Auditor** monitors the whole flow.
+
+Every allocation and distribution is a transaction on a permissioned **Hyperledger Fabric** network. Each organisation keeps its own copy of the ledger, so no single party can quietly change a record.
+
+A smart contract enforces the fund rules: no overspending, and an agency can only spend its own allocations. Not even the backend can bypass them.
 
 ## Architecture
 
@@ -42,9 +50,26 @@ Every transaction is recorded on **Hyperledger Fabric**. A smart contract enforc
               PostgreSQL copy + React frontend
 ```
 
-- Allocations are endorsed by **Ministry + Auditor**
-- Distributions are endorsed by **Agency + Auditor**
-- PostgreSQL holds a copy; the ledger is the source of truth
+### Writing a transaction
+
+1. A user submits an allocation or distribution in the frontend.
+2. The backend checks the user's role and sends the transaction to Fabric as the user's organisation.
+3. The `fund_cc` contract runs on two peers, the user's organisation and the Auditor, and checks the rules. If a rule is broken, the transaction is refused and nothing is written.
+4. The orderers put the transaction into a block, and every peer adds that block to its ledger.
+5. After the commit, the backend saves a copy in PostgreSQL and returns the transaction ID.
+
+| Transaction  | Endorsed by          |
+|--------------|----------------------|
+| Allocation   | Ministry + Auditor   |
+| Distribution | Agency + Auditor     |
+
+### Reading data
+
+The dashboard, transaction history and reports read straight from the ledger, not from PostgreSQL. The ledger is the source of truth.
+
+### Verifying
+
+The Auditor's Monitoring Report compares every ledger record with its PostgreSQL copy and lists any changed, missing or extra record. It only reports differences; it never repairs them.
 
 ## Features
 
@@ -77,6 +102,7 @@ Every transaction is recorded on **Hyperledger Fabric**. A smart contract enforc
 
 Fabric runs entirely in Docker; nothing else to install.
 
+
 ### 1. Create the database
 
 ```bash
@@ -84,6 +110,7 @@ createdb -U postgres myfund
 ```
 
 Flyway creates the tables on first start.
+
 
 ### 2. Add local secrets
 
@@ -95,6 +122,7 @@ app.jwt.secret=<output of: openssl rand -base64 32>
 ```
 
 Optional: `DB_URL` / `DB_USERNAME` (defaults: `localhost:5432/myfund`, `postgres`).
+
 
 ### 3. Install frontend packages
 
@@ -111,11 +139,12 @@ Run `start-dev.bat` from the project root.
 | MyFund Backend  | Spring Boot API | http://localhost:8080 |
 | MyFund Frontend | Vite dev server | http://localhost:3000 |
 
-> First run takes a few minutes (Docker images, contract build, Maven).
+First run takes a few minutes (Docker images, contract build, Maven).
 
 Open http://localhost:3000 when the backend logs `Seeded 10 records on the ledger` (or `not seeding` on later starts).
 
 To stop: close both windows, then run `wsl -d Ubuntu --cd smart-contract ./network.sh down`. Ledger data is kept.
+
 
 ### 5. Demo accounts
 
@@ -127,7 +156,8 @@ Password for all: `1234`
 | Agency   | `director.nadma@nadma.gov.my`  |
 | Auditor  | `auditor.federal@audit.gov.my` |
 
-> Sample records are illustrative, not real government data.
+Sample records are illustrative, not real government data.
+
 
 ## Blockchain Network
 
