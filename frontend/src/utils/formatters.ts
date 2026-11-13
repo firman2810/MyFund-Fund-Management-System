@@ -23,6 +23,13 @@ export function formatDate(dateString: string): string {
   }
 }
 
+// Date only, for "as at" headings: "30 Jun 2026".
+export function formatDay(date: string | number): string {
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return String(date);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 export function truncateHash(hash: string, start = 8, end = 8): string {
   if (!hash || hash.length <= start + end) return hash;
   return `${hash.slice(0, start)}...${hash.slice(-end)}`;

@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Allocation, DiscrepancyType, Distribution, Transaction, User, VerificationResult } from '../types';
-import { formatCurrency, formatDate } from '../utils/formatters';
-import { issuesByAllocation } from '../utils/ledger';
+import { formatCurrency, formatDate, formatDay } from '../utils/formatters';
+import { issuesByAllocation, positionAsAt, quarterEnds } from '../utils/ledger';
+import { AVAILABLE_AGENCIES } from '../data/agencies';
 import { api } from '../services/api';
 import { AlertCircle, Check } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { KpiStrip } from './ui/KpiStrip';
+import { DataTable } from './ui/DataTable';
+import { Pagination, usePage } from './ui/Pagination';
 import {
   BTN_PRIMARY, BTN_SECONDARY, CARD, CARD_EDITORIAL, H2, INPUT, LABEL, NOTICE_ERROR, SECTION_HEAD, TH, THEAD_ROW,
 } from './ui/styles';
@@ -17,6 +20,9 @@ const FINDING: Record<DiscrepancyType, string> = {
 };
 
 const plural = (n: number) => (n === 1 ? 'discrepancy' : 'discrepancies');
+const PAGE = 10;
+// The printed report lists every row, so off-page rows are hidden on screen rather than sliced out.
+const onPage = (p: { start: number; end: number }) => (i: number) => (i >= p.start && i < p.end ? '' : 'hidden print:table-row');
 
 interface MonitoringReportProps {
   currentUser: User;
@@ -33,10 +39,10 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
   transactions,
   onViewTransaction,
 }) => {
-  // Filters
-  const [dateFilter, setDateFilter] = useState<'all' | '30days' | 'q1_2026'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'Fund Allocation' | 'Fund Distribution'>('all');
+  // Filters: agency + "position as at" the end of a quarter drive the whole report; type narrows only the transactions list.
   const [agencyFilter, setAgencyFilter] = useState<string>('all');
+  const [period, setPeriod] = useState<string>('latest');
+  const [typeFilter, setTypeFilter] = useState<'all' | Transaction['type']>('all');
 
   // Ledger vs database copy check (GET /api/verification); reports only, repairs nothing.
   const [verification, setVerification] = useState<VerificationResult | null>(null);
@@ -63,65 +69,44 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
   const ledgerRecord = allocations[0]?.blockchainRecord;
   const latestBlock = transactions.reduce((max, tx) => Math.max(max, tx.blockchainRecord.blockNumber), 0);
 
-  // Filter transactions
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
-      // Type filter
-      if (typeFilter !== 'all' && tx.type !== typeFilter) {
-        return false;
-      }
+  const quarters = useMemo(
+    () => quarterEnds([...allocations.map((a) => a.allocatedDate), ...distributions.map((d) => d.distributedDate)]),
+    [allocations, distributions],
+  );
+  const quarter = quarters.find((q) => q.label === period); // undefined = latest
 
-      // Agency filter
-      if (agencyFilter !== 'all') {
-        const matchesFrom = tx.from.toLowerCase().includes(agencyFilter.toLowerCase());
-        const matchesTo = tx.to.toLowerCase().includes(agencyFilter.toLowerCase());
-        if (!matchesFrom && !matchesTo) return false;
-      }
-
-      // Date filter
-      if (dateFilter === '30days') {
-        const txDate = new Date(tx.date).getTime();
-        const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-        if (txDate < thirtyDaysAgo) return false;
-      } else if (dateFilter === 'q1_2026') {
-        const d = new Date(tx.date);
-        const year = d.getFullYear();
-        const month = d.getMonth();
-        if (year !== 2026 || month > 2) return false;
-      }
-
-      return true;
-    });
-  }, [transactions, typeFilter, agencyFilter, dateFilter]);
-
-  // Calculations based on filtered or master records
-  const totalAllocated = allocations.reduce((sum, a) => sum + a.amount, 0);
-  const totalDistributed = allocations.reduce((sum, a) => sum + a.distributedAmount, 0);
+  // Programme position as at the period end, for the chosen agency.
+  const rows = useMemo(
+    () => positionAsAt(allocations, distributions, quarter?.end)
+      .filter((r) => agencyFilter === 'all' || r.allocation.receivingAgency === agencyFilter),
+    [allocations, distributions, quarter, agencyFilter],
+  );
+  const totalAllocated = rows.reduce((sum, r) => sum + r.allocation.amount, 0);
+  const totalDistributed = rows.reduce((sum, r) => sum + r.distributed, 0);
   const remainingFunds = totalAllocated - totalDistributed;
+  const overallPct = totalAllocated > 0 ? Math.round((totalDistributed / totalAllocated) * 100) : 0;
 
-  const totalTxCount = filteredTransactions.length;
-  const validTxCount = filteredTransactions.filter((tx) => tx.status === 'Committed').length;
-  const rejectedTxCount = filteredTransactions.filter((tx) => tx.status === 'Rejected').length;
+  // Transactions inside the chosen quarter (everything for "latest"), by agency and type.
+  const periodTransactions = useMemo(() => transactions.filter((tx) => {
+    if (typeFilter !== 'all' && tx.type !== typeFilter) return false;
+    if (agencyFilter !== 'all' && tx.from !== agencyFilter && tx.to !== agencyFilter) return false;
+    if (quarter) {
+      const t = new Date(tx.date).getTime();
+      if (t < quarter.start || t > quarter.end) return false;
+    }
+    return true;
+  }), [transactions, typeFilter, agencyFilter, quarter]);
+  const validTxCount = periodTransactions.filter((tx) => tx.status === 'Committed').length;
+  const rejectedTxCount = periodTransactions.filter((tx) => tx.status === 'Rejected').length;
+
+  const resetKey = `${agencyFilter}|${period}|${typeFilter}`;
+  const rowsPage = usePage(rows.length, PAGE, resetKey);
+  const txPage = usePage(periodTransactions.length, PAGE, resetKey);
+  const discPage = usePage(found, PAGE, verification?.checkedAt);
 
   const handlePrint = () => {
     window.print();
   };
-
-  const overallPct = totalAllocated > 0 ? Math.round((totalDistributed / totalAllocated) * 100) : 0;
-  const Verified = ({ children }: { children: React.ReactNode }) => (
-    <span className="inline-flex items-center gap-1 text-[13px] whitespace-nowrap">
-      <Check aria-hidden="true" size={12} strokeWidth={3} />
-      {children}
-    </span>
-  );
-  const Attention = ({ children }: { children: React.ReactNode }) => (
-    <span className="text-[13px] font-semibold text-remaining-text whitespace-nowrap">{children}</span>
-  );
-  // Statuses come only from the latest verification run: "not checked" never looks like "passed".
-  const sectionStatus = verifyError ? <Attention>Verification unavailable</Attention>
-    : !verification ? <span className="text-[13px] text-muted">Checking against database copy…</span>
-      : found === 0 ? <Verified>Matches database copy · checked {formatDate(verification.checkedAt)}</Verified>
-        : <Attention>{found} {plural(found)}, see verification below</Attention>;
 
   return (
     <div className="flex flex-col gap-6">
@@ -136,33 +121,24 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
 
       {/* Filter Controls (Hidden when printing) */}
       <section aria-label="Report filters" className={`${CARD} px-6 py-5 print:hidden`}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label htmlFor="mr-date" className={LABEL}>AUDIT TIMEFRAME</label>
-            <select id="mr-date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value as any)} className={INPUT}>
-              <option value="all">All available records</option>
-              <option value="30days">Last 30 days (trailing)</option>
-              <option value="q1_2026">Quarter 1 2026 (Jan – Mar)</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="mr-type" className={LABEL}>TRANSACTION STREAM</label>
-            <select id="mr-type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)} className={INPUT}>
-              <option value="all">All transactions (allocation &amp; distribution)</option>
-              <option value="Fund Allocation">Fund allocation only</option>
-              <option value="Fund Distribution">Fund distribution only</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="mr-agency" className={LABEL}>DESIGNATED ENTITY</label>
+            <label htmlFor="mr-agency" className={LABEL}>AGENCY</label>
             <select id="mr-agency" value={agencyFilter} onChange={(e) => setAgencyFilter(e.target.value)} className={INPUT}>
-              <option value="all">All agencies &amp; NGOs</option>
-              <option value="NADMA">National Disaster Management Agency (NADMA)</option>
-              <option value="KEMAS">Rural Community Dev (KEMAS)</option>
-              <option value="MRCS">Red Crescent Society (MRCS)</option>
-              <option value="YKK">Yayasan Kebajikan Komuniti (YKK)</option>
+              <option value="all">All agencies</option>
+              {AVAILABLE_AGENCIES.map((agency) => (
+                <option key={agency} value={agency}>{agency}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="mr-period" className={LABEL}>POSITION AS AT</label>
+            <select id="mr-period" value={period} onChange={(e) => setPeriod(e.target.value)} className={INPUT}>
+              <option value="latest">Latest (all records)</option>
+              {quarters.map((q) => (
+                <option key={q.label} value={q.label}>End of {q.label} ({formatDay(q.end)})</option>
+              ))}
             </select>
           </div>
         </div>
@@ -174,15 +150,16 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
           { label: 'TOTAL ALLOCATED', value: formatCurrency(totalAllocated) },
           { label: 'DISTRIBUTED', swatch: 'distributed', value: formatCurrency(totalDistributed) },
           { label: 'REMAINING', swatch: 'remaining', value: formatCurrency(remainingFunds) },
-          { label: 'TRANSACTIONS', value: totalTxCount, caption: `${validTxCount} valid · ${rejectedTxCount} rejected` },
+          { label: 'TRANSACTIONS', value: periodTransactions.length, caption: `${validTxCount} valid · ${rejectedTxCount} rejected` },
         ]}
       />
 
       {/* Allocation vs Distribution Ledger Reconciliation Table */}
       <section aria-labelledby="recon-h" className={CARD}>
         <div className={SECTION_HEAD}>
-          <h2 id="recon-h" className={H2}>Programme ledger reconciliation</h2>
-          {sectionStatus}
+          <h2 id="recon-h" className={H2}>
+            {quarter ? `Programme position as at ${formatDay(quarter.end)}` : 'Programme position, latest'}
+          </h2>
         </div>
 
         <div className="overflow-x-auto">
@@ -194,16 +171,22 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
                 <th scope="col" className={`${TH} text-right`}>ALLOCATED</th>
                 <th scope="col" className={`${TH} text-right`}>DISBURSED</th>
                 <th scope="col" className={`${TH} text-right`}>REMAINING</th>
-                <th scope="col" className={`${TH} text-right`}>OUT</th>
-                <th scope="col" className={`${TH} pr-6`}>LEDGER INTEGRITY</th>
+                <th scope="col" className={`${TH} text-right ${found ? '' : 'pr-6'}`}>OUT</th>
+                {/* Only worth a column when there is a difference to point at; the verdict itself is in the verification card. */}
+                {found > 0 && <th scope="col" className={`${TH} pr-6`}>LEDGER INTEGRITY</th>}
               </tr>
             </thead>
             <tbody>
-              {allocations.map((item) => {
-                const pct = Math.round((item.distributedAmount / item.amount) * 100);
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={found ? 7 : 6} className="px-6 py-8 text-center text-muted">No allocations match these filters.</td>
+                </tr>
+              )}
+              {rows.map(({ allocation: item, distributed, remaining }, i) => {
+                const pct = item.amount > 0 ? Math.round((distributed / item.amount) * 100) : 0;
                 const n = issues?.get(item.id) ?? 0;
                 return (
-                  <tr key={item.id} className="border-b border-divider">
+                  <tr key={item.id} className={`border-b border-divider ${onPage(rowsPage)(i)}`}>
                     <td className="py-3 pl-6 pr-3 max-w-[280px]">
                       <div className="font-semibold truncate" title={item.programme}>{item.programme}</div>
                       <div className="font-mono text-[11px] text-muted">
@@ -212,16 +195,17 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
                     </td>
                     <td className="p-3 max-w-[220px] truncate" title={item.receivingAgency}>{item.receivingAgency}</td>
                     <td className="p-3 text-right font-semibold whitespace-nowrap">{formatCurrency(item.amount)}</td>
-                    <td className="p-3 text-right font-semibold whitespace-nowrap">{formatCurrency(item.distributedAmount)}</td>
+                    <td className="p-3 text-right font-semibold whitespace-nowrap">{formatCurrency(distributed)}</td>
                     {/* Orange only while money is still waiting; a fully distributed row goes quiet. */}
-                    <td className={`p-3 text-right font-semibold whitespace-nowrap ${item.remainingAmount > 0 ? 'text-remaining-text' : 'text-muted'}`}>
-                      {formatCurrency(item.remainingAmount)}
+                    <td className={`p-3 text-right font-semibold whitespace-nowrap ${remaining > 0 ? 'text-remaining-text' : 'text-muted'}`}>
+                      {formatCurrency(remaining)}
                     </td>
-                    <td className="p-3 text-right font-mono text-xs">{pct}%</td>
-                    {/* Plain text when it matches; the check marks only the section and total verdicts. */}
-                    <td className={`py-3 pl-3 pr-6 text-[13px] whitespace-nowrap ${n ? 'font-semibold text-remaining-text' : 'text-muted'}`}>
-                      {!issues ? '—' : n ? `${n} ${n === 1 ? 'difference' : 'differences'}` : 'Matches'}
-                    </td>
+                    <td className={`p-3 text-right font-mono text-xs ${found ? '' : 'pr-6'}`}>{pct}%</td>
+                    {found > 0 && (
+                      <td className={`py-3 pl-3 pr-6 text-[13px] whitespace-nowrap ${n ? 'font-semibold text-remaining-text' : 'text-muted'}`}>
+                        {n ? `${n} ${n === 1 ? 'difference' : 'differences'}` : 'Matches'}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -232,15 +216,36 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
                 <td className="p-3 text-right whitespace-nowrap">{formatCurrency(totalAllocated)}</td>
                 <td className="p-3 text-right whitespace-nowrap">{formatCurrency(totalDistributed)}</td>
                 <td className="p-3 text-right text-remaining-text whitespace-nowrap">{formatCurrency(remainingFunds)}</td>
-                <td className="p-3 text-right font-mono text-xs">{overallPct}%</td>
-                <td className="py-3 pl-3 pr-6">
-                  {!verification ? <span className="text-[13px] font-normal text-muted">—</span>
-                    : found === 0 ? <Verified>All match</Verified> : <Attention>{found} differ</Attention>}
-                </td>
+                <td className={`p-3 text-right font-mono text-xs ${found ? '' : 'pr-6'}`}>{overallPct}%</td>
+                {found > 0 && <td className="py-3 pl-3 pr-6" />}
               </tr>
             </tfoot>
           </table>
         </div>
+        <Pagination {...rowsPage} label="Programme" />
+      </section>
+
+      {/* Transactions inside the chosen period; the Type select narrows only this list. */}
+      <section aria-labelledby="period-tx-h" className={CARD}>
+        <div className={SECTION_HEAD}>
+          <h2 id="period-tx-h" className={H2}>Transactions in this period</h2>
+          <div className="w-full sm:w-72 print:hidden">
+            <label htmlFor="mr-type" className={LABEL}>TYPE</label>
+            <select id="mr-type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)} className={INPUT}>
+              <option value="all">All transactions</option>
+              <option value="Fund Allocation">Fund allocation only</option>
+              <option value="Fund Distribution">Fund distribution only</option>
+            </select>
+          </div>
+        </div>
+        <DataTable
+          full
+          transactions={periodTransactions}
+          onView={onViewTransaction}
+          rowClassName={onPage(txPage)}
+          emptyMessage="No transactions in this period."
+        />
+        <Pagination {...txPage} label="Transaction" />
       </section>
 
       {/* Ledger vs database verification */}
@@ -286,30 +291,33 @@ export const MonitoringReport: React.FC<MonitoringReportProps> = ({
         </div>
 
         {verification && found > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse">
-              <thead>
-                <tr className={THEAD_ROW}>
-                  <th scope="col" className={`${TH} pl-6`}>RECORD</th>
-                  <th scope="col" className={TH}>FINDING</th>
-                  <th scope="col" className={TH}>FIELD</th>
-                  <th scope="col" className={TH}>ON LEDGER</th>
-                  <th scope="col" className={`${TH} pr-6`}>IN DATABASE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {verification.discrepancies.map((d, i) => (
-                  <tr key={`${d.recordId}-${d.field ?? d.type}-${i}`} className="border-b border-divider">
-                    <td className="py-3 pl-6 pr-3 font-mono text-xs whitespace-nowrap">{d.recordId}</td>
-                    <td className="p-3 font-semibold">{FINDING[d.type]}</td>
-                    <td className="p-3 font-mono text-xs">{d.field ?? '—'}</td>
-                    <td className="p-3 font-mono text-xs break-all">{d.chainValue ?? '—'}</td>
-                    <td className="py-3 pl-3 pr-6 font-mono text-xs break-all text-remaining-text">{d.copyValue ?? '—'}</td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] border-collapse">
+                <thead>
+                  <tr className={THEAD_ROW}>
+                    <th scope="col" className={`${TH} pl-6`}>RECORD</th>
+                    <th scope="col" className={TH}>FINDING</th>
+                    <th scope="col" className={TH}>FIELD</th>
+                    <th scope="col" className={TH}>ON LEDGER</th>
+                    <th scope="col" className={`${TH} pr-6`}>IN DATABASE</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {verification.discrepancies.map((d, i) => (
+                    <tr key={`${d.recordId}-${d.field ?? d.type}-${i}`} className={`border-b border-divider ${onPage(discPage)(i)}`}>
+                      <td className="py-3 pl-6 pr-3 font-mono text-xs whitespace-nowrap">{d.recordId}</td>
+                      <td className="p-3 font-semibold">{FINDING[d.type]}</td>
+                      <td className="p-3 font-mono text-xs">{d.field ?? '—'}</td>
+                      <td className="p-3 font-mono text-xs break-all">{d.chainValue ?? '—'}</td>
+                      <td className="py-3 pl-3 pr-6 font-mono text-xs break-all text-remaining-text">{d.copyValue ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination {...discPage} label="Discrepancy" />
+          </>
         )}
       </section>
 

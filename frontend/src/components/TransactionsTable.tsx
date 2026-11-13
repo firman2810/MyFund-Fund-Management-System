@@ -3,6 +3,7 @@ import { Transaction, User, UserRole } from '../types';
 import { Search, X } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { DataTable } from './ui/DataTable';
+import { Pagination, usePage } from './ui/Pagination';
 import { CARD, INPUT, LABEL, LINK } from './ui/styles';
 
 
@@ -45,9 +46,8 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
       // Agency filter
       if (selectedAgency !== 'ALL') {
-        const matchesFrom = tx.from.toLowerCase().includes(selectedAgency.toLowerCase());
-        const matchesTo = tx.to.toLowerCase().includes(selectedAgency.toLowerCase());
-        if (!matchesFrom && !matchesTo) return false;
+        // Exact match: substring matching let one agency's name pick up another's records.
+        if (tx.from !== selectedAgency && tx.to !== selectedAgency) return false;
       }
 
       // Search query (TX ID, hash, from, to, programme, description)
@@ -67,6 +67,7 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
 
   const filtered = selectedType !== 'ALL' || selectedAgency !== 'ALL' || searchQuery;
+  const pager = usePage(filteredTransactions.length, 10, `${searchQuery}|${selectedType}|${selectedAgency}`);
 
   return (
     <div className="flex flex-col gap-6">
@@ -152,10 +153,11 @@ export const TransactionsTable: React.FC<TransactionsTableProps> = ({
 
         <DataTable
           full
-          transactions={filteredTransactions}
+          transactions={filteredTransactions.slice(pager.start, pager.end)}
           onView={onViewTransaction}
           emptyMessage="No transactions matched your search or filter criteria."
         />
+        <Pagination {...pager} label="Transaction" />
       </section>
     </div>
   );

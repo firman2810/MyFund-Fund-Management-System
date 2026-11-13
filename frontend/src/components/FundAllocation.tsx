@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { AlertCircle, Check, X } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { Modal } from './ui/Modal';
+import { Pagination, usePage } from './ui/Pagination';
 import {
   BTN_PRIMARY, BTN_SECONDARY, BTN_ROW, CARD, H2, INPUT, LABEL, NOTICE_ERROR, NOTICE_OK, SECTION_HEAD, TH, THEAD_ROW,
 } from './ui/styles';
@@ -97,6 +98,8 @@ export const FundAllocation: React.FC<FundAllocationProps> = ({
   };
 
   const totalAllocated = allocations.reduce((s, a) => s + a.amount, 0);
+  // 20 per page; a new allocation (it sorts first) sends the table back to page 1.
+  const pager = usePage(allocations.length, 20, String(allocations.length));
   const closeForm = () => setShowCreateModal(false);
 
   return (
@@ -161,7 +164,7 @@ export const FundAllocation: React.FC<FundAllocationProps> = ({
               </tr>
             </thead>
             <tbody>
-              {allocations.map((item) => {
+              {allocations.slice(pager.start, pager.end).map((item) => {
                 const distPct = Math.round((item.distributedAmount / item.amount) * 100);
                 return (
                   <tr key={item.id} className="border-b border-divider">
@@ -213,6 +216,7 @@ export const FundAllocation: React.FC<FundAllocationProps> = ({
             </tbody>
           </table>
         </div>
+        <Pagination {...pager} label="Allocation" />
       </section>
 
       {/* CREATE FUND ALLOCATION MODAL */}
@@ -303,9 +307,13 @@ export const FundAllocation: React.FC<FundAllocationProps> = ({
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     disabled={isSubmitting}
+                    aria-describedby="alc-amount-readback"
                     className={`${INPUT} pl-10 font-mono`}
                   />
                 </div>
+                  <span id="alc-amount-readback" aria-live="polite" className="block text-[13px] text-text-2 mt-1.5">
+                    {Number(amount) > 0 ? formatCurrency(Number(amount)) : ''}
+                  </span>
               </div>
 
               <div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { User, UserRole } from '../types';
 import { ChevronDown } from 'lucide-react';
 import { Logo } from './ui/Logo';
@@ -25,6 +25,18 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
 }) => {
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  // Escape closes the user menu and returns focus to its button.
+  useEffect(() => {
+    if (!roleDropdownOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setRoleDropdownOpen(false);
+      menuButton.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [roleDropdownOpen]);
 
   // Role-specific navigation items
   const navItems = {
@@ -78,6 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* User profile & quick role switch */}
         <div className="relative ml-auto">
           <button
+            ref={menuButton}
             type="button"
             onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
             aria-expanded={roleDropdownOpen}
