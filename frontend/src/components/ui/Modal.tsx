@@ -5,7 +5,6 @@ import { X } from 'lucide-react';
 // Square dialog: ink header strip, white body, optional footer row. onClose omitted = no close button (e.g. while submitting).
 // Portalled to <body>: the page's fade-in transform would otherwise trap `position: fixed` inside the content area.
 // Escape closes it (when closable); focus moves to the dialog on open and back to the previous element on close.
-// While open, the app root (#root) is inert, so Tab can't leave the dialog and the page behind is hidden from screen readers.
 export const Modal: React.FC<{
   titleId: string;
   title: React.ReactNode;
@@ -20,8 +19,6 @@ export const Modal: React.FC<{
   close.current = onClose; // latest handler: onClose is undefined while submitting
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    const root = document.getElementById('root');
-    root?.setAttribute('inert', '');
     dialog.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close.current?.();
@@ -29,12 +26,11 @@ export const Modal: React.FC<{
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
-      root?.removeAttribute('inert'); // before restoring focus: an inert element can't take it
       previous?.focus();
     };
   }, []);
   return createPortal(
-  <div className="fixed inset-0 z-50 overflow-y-auto bg-ink/60 flex items-start sm:items-center justify-center p-4 pt-6 sm:pt-4">
+  <div className="fixed inset-0 z-50 overflow-y-auto bg-ink/60 flex items-center justify-center p-4">
     <div
       role="dialog"
       aria-modal="true"
